@@ -21,7 +21,7 @@
 :root{
   --bg:#F2F3F8; --surface:#FFFFFF; --surface-2:#E9EBF3; --ink:#141729; --muted:#5D6278; --line:#D8DBE6;
   --accent:#3140D4; --accent-soft:#E2E5FF; --on-accent:#FFFFFF;
-  --xp:#B97C05; --xp-soft:#FBEFD0; --on-xp:#FFFFFF;
+  --xp:#B97C05; --xp-soft:#FBEFD0; --on-xp:#2A1C00; --xp-ink:#8A5C00;
   --good:#1D8655; --good-soft:#DBF2E5; --low:#C2410C; --low-soft:#FCE6D9;
   --font-display:"Unbounded","Arial Black",system-ui,sans-serif;
   --font-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -30,13 +30,13 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D1020; --surface:#161A2D; --surface-2:#1F2439; --ink:#E7E9F4; --muted:#9AA0B9; --line:#2B3149;
   --accent:#8E98FF; --accent-soft:#252B57; --on-accent:#0D1020;
-  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405;
+  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405; --xp-ink:#F0B43C;
   --good:#4FCB8C; --good-soft:#143425; --low:#FB8B5C; --low-soft:#3B2115;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D1020; --surface:#161A2D; --surface-2:#1F2439; --ink:#E7E9F4; --muted:#9AA0B9; --line:#2B3149;
   --accent:#8E98FF; --accent-soft:#252B57; --on-accent:#0D1020;
-  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405;
+  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405; --xp-ink:#F0B43C;
   --good:#4FCB8C; --good-soft:#143425; --low:#FB8B5C; --low-soft:#3B2115;
   color-scheme:dark}
 
@@ -66,7 +66,7 @@ p{margin:0}
 .passwrap .in{padding-right:96px}
 .passeye{position:absolute;right:6px;top:50%;transform:translateY(-50%);appearance:none;border:0;background:var(--surface);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer}
 .passeye:hover{color:var(--ink)}
-#au-layout{color:var(--xp);font-weight:500}
+#au-layout{color:var(--xp-ink);font-weight:500}
 .authform .linkbtn{align-self:flex-start;font-size:14px}
 .row-btns{display:flex;gap:8px;flex-wrap:wrap}
 .authform{display:flex;flex-direction:column;gap:12px;max-width:420px}
@@ -87,6 +87,7 @@ p{margin:0}
 .tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;padding-block:10px;margin-top:14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .tab{appearance:none;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:14px;padding:8px 14px;border-radius:10px;cursor:pointer;white-space:nowrap}
 .tab:hover{color:var(--ink)}
+@media (max-width:440px){.tabs{gap:0}.tab{flex:1 1 auto;padding:8px 5px;font-size:13px}}
 .tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
 main{display:flex;flex-direction:column;gap:18px;margin-top:18px}
 
@@ -107,7 +108,7 @@ main{display:flex;flex-direction:column;gap:18px;margin-top:18px}
 .btn.small{padding:6px 10px;font-size:13px}
 .linkbtn{appearance:none;border:0;background:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
-.pill.xp{background:var(--xp-soft);color:var(--xp)}
+.pill.xp{background:var(--xp-soft);color:var(--xp-ink)}
 .pill.good{background:var(--good-soft);color:var(--good)}
 
 .in{width:100%;background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:9px 12px;font:inherit;color:var(--ink);min-width:0}
@@ -131,7 +132,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:60
 .cell.good{background:var(--good-soft);border-color:var(--good)}
 .cell.good .pct{color:var(--good)}
 .cell.mid{background:var(--xp-soft);border-color:var(--xp)}
-.cell.mid .pct{color:var(--xp)}
+.cell.mid .pct{color:var(--xp-ink)}
 .cell.low{background:var(--low-soft);border-color:var(--low)}
 .cell.low .pct{color:var(--low)}
 .cell.future{background:transparent}
@@ -217,7 +218,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:60
 .steps div{background:var(--surface-2);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px;font-size:14px}
 .steps b{font-family:var(--font-display);font-weight:500;font-size:13px}
 @media (max-width:620px){.steps{grid-template-columns:1fr}}
-.warn{font-size:13px;color:var(--xp)}
+.warn{font-size:13px;color:var(--xp-ink)}
 
 /* review/stats */
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -261,10 +262,10 @@ details.rv dd{margin:0;white-space:pre-wrap}
 .xptable{width:100%;border-collapse:collapse;font-size:14px}
 .xptable td{padding:8px 0;border-top:1px solid var(--line)}
 .xptable tr:first-child td{border-top:0}
-.xptable td:last-child{text-align:right;font-family:var(--font-mono);color:var(--xp);white-space:nowrap;padding-left:12px}
+.xptable td:last-child{text-align:right;font-family:var(--font-mono);color:var(--xp-ink);white-space:nowrap;padding-left:12px}
 .achs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .ach{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:flex-start}
-.ach .medal{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--xp-soft);border:2px solid var(--xp);color:var(--xp);font-family:var(--font-display);font-size:12px;font-weight:700}
+.ach .medal{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--xp-soft);border:2px solid var(--xp);color:var(--xp-ink);font-family:var(--font-display);font-size:12px;font-weight:700}
 .ach.locked{opacity:.55}
 .ach.locked .medal{background:var(--surface-2);border-color:var(--line);color:var(--muted)}
 .ach b{display:block;font-size:14px}
@@ -319,12 +320,12 @@ details.rv dd{margin:0;white-space:pre-wrap}
 /* skin: notebook */
 :root[data-skin="notebook"]{--bg:#F3F4EF;--surface:#FFFFFF;--surface-2:#ECEDE6;--ink:#1F2A44;--muted:#5E6577;--line:#D6D9CF;
  --accent:#2B4BB8;--accent-soft:#E2E8FA;--on-accent:#FFFFFF;--xp:#C98A00;--xp-soft:#FFF0B3;--on-xp:#1F2A44;
- --good:#2E8A57;--good-soft:#DDF1E4;--low:#CC5236;--low-soft:#FBE4DC;
+ --good:#2E8A57;--good-soft:#DDF1E4;--low:#B3432A;--xp-ink:#8A5F00;--low-soft:#FBE4DC;
  --font-display:"Caveat","Comic Sans MS",cursive;--font-body:"Golos Text",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace;--dot:#C9CDC1}
 @media (prefers-color-scheme: dark){:root[data-skin="notebook"]:not([data-theme="light"]){--bg:#171B24;--surface:#1F2430;--surface-2:#2A3040;--ink:#E8EAF0;--muted:#9AA1B2;--line:#343B4D;
- --accent:#8EA6FF;--accent-soft:#283258;--on-accent:#111827;--xp:#F2C14E;--xp-soft:#3B331A;--on-xp:#171B24;--good:#5FCB8E;--good-soft:#173326;--low:#F08A6E;--low-soft:#3A221B;--dot:#2B3142;color-scheme:dark}}
+ --accent:#8EA6FF;--accent-soft:#283258;--on-accent:#111827;--xp:#F2C14E;--xp-soft:#3B331A;--on-xp:#171B24;--good:#5FCB8E;--good-soft:#173326;--low:#F08A6E;--xp-ink:#F2C14E;--low-soft:#3A221B;--dot:#2B3142;color-scheme:dark}}
 :root[data-skin="notebook"][data-theme="dark"]{--bg:#171B24;--surface:#1F2430;--surface-2:#2A3040;--ink:#E8EAF0;--muted:#9AA1B2;--line:#343B4D;
- --accent:#8EA6FF;--accent-soft:#283258;--on-accent:#111827;--xp:#F2C14E;--xp-soft:#3B331A;--on-xp:#171B24;--good:#5FCB8E;--good-soft:#173326;--low:#F08A6E;--low-soft:#3A221B;--dot:#2B3142;color-scheme:dark}
+ --accent:#8EA6FF;--accent-soft:#283258;--on-accent:#111827;--xp:#F2C14E;--xp-soft:#3B331A;--on-xp:#171B24;--good:#5FCB8E;--good-soft:#173326;--low:#F08A6E;--xp-ink:#F2C14E;--low-soft:#3A221B;--dot:#2B3142;color-scheme:dark}
 [data-skin="notebook"] body{background-color:var(--bg);background-image:radial-gradient(var(--dot) 1.2px,transparent 1.3px);background-size:22px 22px}
 [data-skin="notebook"] .card,[data-skin="notebook"] .wl-hero,[data-skin="notebook"] .wl-steps li,[data-skin="notebook"] .stat,[data-skin="notebook"] .lvlchip{border-radius:6px;box-shadow:0 1px 0 var(--line),0 2px 8px rgba(31,42,68,.06)}
 [data-skin="notebook"] .tabs{background:transparent;gap:18px}
@@ -348,13 +349,13 @@ details.rv dd{margin:0;white-space:pre-wrap}
 
 /* skin: game */
 :root[data-skin="game"]{--bg:#EEF0F8;--surface:#FFFFFF;--surface-2:#E3E7F4;--ink:#1A2140;--muted:#5D6690;--line:#D3D8EA;
- --accent:#F25F2C;--accent-soft:#FFE5DA;--on-accent:#FFFFFF;--xp:#7A4DFF;--xp-soft:#ECE5FF;--on-xp:#FFFFFF;
- --good:#13A86B;--good-soft:#D6F5E7;--low:#E8394F;--low-soft:#FDE0E4;
- --font-display:"Russo One","Arial Black",sans-serif;--font-body:"Rubik",system-ui,sans-serif;--font-mono:"Rubik",system-ui,sans-serif;--press:#C2441A}
+ --accent:#BF3B10;--accent-soft:#FFE5DA;--on-accent:#FFFFFF;--xp:#7A4DFF;--xp-soft:#ECE5FF;--on-xp:#FFFFFF;
+ --good:#13A86B;--good-soft:#D6F5E7;--low:#C8243A;--low-soft:#FDE0E4;
+ --font-display:"Russo One","Arial Black",sans-serif;--font-body:"Rubik",system-ui,sans-serif;--font-mono:"Rubik",system-ui,sans-serif;--press:#8E2A0A;--xp-ink:#5B2FE0}
 @media (prefers-color-scheme: dark){:root[data-skin="game"]:not([data-theme="light"]){--bg:#11162B;--surface:#1A2140;--surface-2:#252D52;--ink:#F2F4FF;--muted:#9CA5CF;--line:#2D3762;
- --accent:#FF7A45;--accent-soft:#3D2A2A;--on-accent:#1A1206;--xp:#9D7BFF;--xp-soft:#2E2752;--on-xp:#11162B;--good:#3DDC97;--good-soft:#163A30;--low:#FF5D73;--low-soft:#3E1D27;--press:#B4481F;color-scheme:dark}}
+ --accent:#FF7A45;--accent-soft:#3D2A2A;--on-accent:#1A1206;--xp:#9D7BFF;--xp-soft:#2E2752;--on-xp:#11162B;--good:#3DDC97;--good-soft:#163A30;--low:#FF5D73;--low-soft:#3E1D27;--press:#B4481F;--xp-ink:#B9A2FF;color-scheme:dark}}
 :root[data-skin="game"][data-theme="dark"]{--bg:#11162B;--surface:#1A2140;--surface-2:#252D52;--ink:#F2F4FF;--muted:#9CA5CF;--line:#2D3762;
- --accent:#FF7A45;--accent-soft:#3D2A2A;--on-accent:#1A1206;--xp:#9D7BFF;--xp-soft:#2E2752;--on-xp:#11162B;--good:#3DDC97;--good-soft:#163A30;--low:#FF5D73;--low-soft:#3E1D27;--press:#B4481F;color-scheme:dark}
+ --accent:#FF7A45;--accent-soft:#3D2A2A;--on-accent:#1A1206;--xp:#9D7BFF;--xp-soft:#2E2752;--on-xp:#11162B;--good:#3DDC97;--good-soft:#163A30;--low:#FF5D73;--low-soft:#3E1D27;--press:#B4481F;--xp-ink:#B9A2FF;color-scheme:dark}
 [data-skin="game"] .card,[data-skin="game"] .wl-hero,[data-skin="game"] .wl-steps li,[data-skin="game"] .stat{border-radius:18px;border-width:2px}
 [data-skin="game"] .btn{border-radius:14px;border-width:2px;font-weight:600}
 [data-skin="game"] .btn.primary{box-shadow:0 4px 0 var(--press);transform:translateY(-2px)}
@@ -379,12 +380,12 @@ details.rv dd{margin:0;white-space:pre-wrap}
 /* skin: calm */
 :root[data-skin="calm"]{--bg:#FAFAF8;--surface:#FFFFFF;--surface-2:#F1F1EE;--ink:#1D1E1B;--muted:#6C6D67;--line:#E6E6E1;
  --accent:#2E6A4F;--accent-soft:#E2EEE7;--on-accent:#FFFFFF;--xp:#8C6D1F;--xp-soft:#F3ECD8;--on-xp:#FFFFFF;
- --good:#2E6A4F;--good-soft:#E2EEE7;--low:#B0573A;--low-soft:#F6E5DE;
+ --good:#2E6A4F;--good-soft:#E2EEE7;--low:#B0573A;--xp-ink:#6E5412;--low-soft:#F6E5DE;
  --font-display:"Golos Text",system-ui,sans-serif;--font-body:"Golos Text",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace}
 @media (prefers-color-scheme: dark){:root[data-skin="calm"]:not([data-theme="light"]){--bg:#141513;--surface:#1B1C1A;--surface-2:#252623;--ink:#ECECE7;--muted:#9C9D96;--line:#2D2E2A;
- --accent:#7FC2A0;--accent-soft:#1F3229;--on-accent:#101410;--xp:#D9B866;--xp-soft:#33301F;--on-xp:#141513;--good:#7FC2A0;--good-soft:#1F3229;--low:#E09174;--low-soft:#3A251D;color-scheme:dark}}
+ --accent:#7FC2A0;--accent-soft:#1F3229;--on-accent:#101410;--xp:#D9B866;--xp-soft:#33301F;--on-xp:#141513;--good:#7FC2A0;--good-soft:#1F3229;--low:#E09174;--xp-ink:#D9B866;--low-soft:#3A251D;color-scheme:dark}}
 :root[data-skin="calm"][data-theme="dark"]{--bg:#141513;--surface:#1B1C1A;--surface-2:#252623;--ink:#ECECE7;--muted:#9C9D96;--line:#2D2E2A;
- --accent:#7FC2A0;--accent-soft:#1F3229;--on-accent:#101410;--xp:#D9B866;--xp-soft:#33301F;--on-xp:#141513;--good:#7FC2A0;--good-soft:#1F3229;--low:#E09174;--low-soft:#3A251D;color-scheme:dark}
+ --accent:#7FC2A0;--accent-soft:#1F3229;--on-accent:#101410;--xp:#D9B866;--xp-soft:#33301F;--on-xp:#141513;--good:#7FC2A0;--good-soft:#1F3229;--low:#E09174;--xp-ink:#D9B866;--low-soft:#3A251D;color-scheme:dark}
 [data-skin="calm"] .card,[data-skin="calm"] .wl-hero,[data-skin="calm"] .wl-steps li,[data-skin="calm"] .stat{border-radius:12px;box-shadow:none}
 [data-skin="calm"] .wrap{max-width:760px}
 [data-skin="calm"] main{gap:26px}
@@ -570,16 +571,16 @@ const CFG=window.APP_CONFIG||{};
 const SYNC_READY=!!(CFG.supabaseUrl&&CFG.supabaseKey&&!/YOUR_|ВАШ/.test(CFG.supabaseUrl+CFG.supabaseKey)&&window.supabase);
 let sb=null,session=null,lastUid=null,saveTimer=null,saving=false,dirty=false,syncErr='';
 const auth={mode:'in',email:'',busy:false,msg:'',info:''};
-let pendingImport=null,installPrompt=null;
+let pendingImport=null,installPrompt=null,conflict=null;
 function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
 function scheduleSave(){
   if(S.isExample){setStatus();return}
   S.rev=(S.rev||0)+1;S.updatedAt=Date.now();saveLocal();
-  if(session){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,800)}
+  if(session&&!conflict){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,800)}
   setStatus();
 }
 async function flush(){
-  if(!session||!dirty){setStatus();return}
+  if(!session||!dirty||conflict){setStatus();return}
   if(saving){clearTimeout(saveTimer);saveTimer=setTimeout(flush,500);return}
   saving=true;dirty=false;setStatus();
   try{
@@ -588,7 +589,13 @@ async function flush(){
   }catch(e){dirty=true;syncErr=(e&&e.message)||'нет связи';clearTimeout(saveTimer);saveTimer=setTimeout(flush,6000+Math.random()*4000)}
   saving=false;setStatus();
 }
-function adopt(remote){S=remote;saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();render()}
+function hasContent(x){
+  if(!x)return false;
+  return x.goals.length>0||!!(x.vision.long.trim()||x.vision.three.trim())||x.history.length>0||x.xpBank>0||
+    Object.values(x.weeks).some(w=>w.reviewed||Object.values(w.done).some(v=>v>0)||Object.values(w.review).some(v=>String(v).trim()));
+}
+function sameData(a,b){const k=x=>JSON.stringify([x.cycle,x.vision,x.goals,x.weeks,x.history,x.xpBank]);return k(a)===k(b)}
+function adopt(remote){if(session)remote.owner=session.user.id;S=remote;saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();render()}
 async function pull(initial){
   if(!session)return;
   try{
@@ -598,10 +605,20 @@ async function pull(initial){
       const remote=migrate(data.state);
       if(isExampleData(remote)){if(!S.isExample&&S.goals.length){dirty=true;flush()}setStatus();return}
       if(initial){
-        if(!S.isExample&&(S.updatedAt||0)>(remote.updatedAt||0)){dirty=true;flush()}
-        else if((remote.updatedAt||0)!==(S.updatedAt||0))adopt(remote);
-      }else if((remote.updatedAt||0)>(S.updatedAt||0)&&!dirty&&!saving&&!isEditing())adopt(remote);
-    }else if(!S.isExample){dirty=true;flush()}
+        const uid=session.user.id;
+        if(S.isExample||!hasContent(S))adopt(remote);
+        else if(S.owner===uid){
+          if((S.updatedAt||0)>(remote.updatedAt||0)){dirty=true;flush()}
+          else if((remote.updatedAt||0)!==(S.updatedAt||0))adopt(remote);
+        }else if(!hasContent(remote)){S.owner=uid;saveLocal();dirty=true;flush()}
+        else if(sameData(S,remote)){S.owner=uid;if((remote.updatedAt||0)>=(S.updatedAt||0))adopt(remote);else{saveLocal();dirty=true;flush()}}
+        else{conflict={kind:'two',remote};ui.tab='account';render()}
+      }else if(!conflict&&(remote.updatedAt||0)>(S.updatedAt||0)&&!dirty&&!saving&&!isEditing())adopt(remote);
+    }else if(initial&&!S.isExample){
+      const uid=session.user.id;
+      if(S.owner&&S.owner!==uid&&hasContent(S)){conflict={kind:'foreign'};ui.tab='account';render()}
+      else{S.owner=uid;saveLocal();dirty=true;flush()}
+    }
     syncErr='';
   }catch(e){syncErr=(e&&e.message)||'нет связи'}
   setStatus();
@@ -611,6 +628,7 @@ function setStatus(){
   let t,c='status';
   if(!SYNC_READY){t='Только на этом устройстве';c+=' local'}
   else if(!session){t='Войти для синхронизации';c+=' local'}
+  else if(conflict){t='Выберите, какой цикл оставить';c+=' busy'}
   else if(syncErr){t='Нет связи · сохранено на устройстве';c+=' busy'}
   else if(dirty||saving){t='Синхронизирую…';c+=' busy'}
   else t='Синхронизировано';
@@ -625,7 +643,7 @@ async function initSync(){
       session=s;
       if(ev==='PASSWORD_RECOVERY'){auth.mode='newpass';auth.msg='';auth.info='';ui.tab='account';setTimeout(()=>{render();focusId('au-pass')},0)}
       if(s&&s.user.id!==lastUid){lastUid=s.user.id;setTimeout(()=>pull(true),0)}
-      if(!s){lastUid=null;dirty=false}
+      if(!s){lastUid=null;dirty=false;conflict=null}
       setStatus();if(ui.tab==='account')render();
     });
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(dirty)flush();pull(false)}});
@@ -645,6 +663,7 @@ function renderHeader(){
       <span class="lvl-text"><span class="lvl-title">${esc(L.title)}</span><span class="bar"><i style="width:${L.pct}%"></i></span></span>
     </button>`;
   document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${ui.tab===k}" data-act="tab:${k}">${l}</button>`).join('');
+  {const nav=document.getElementById('tabs'),on=nav.querySelector('[aria-selected="true"]');if(on&&(on.offsetLeft+on.offsetWidth>nav.scrollLeft+nav.clientWidth||on.offsetLeft<nav.scrollLeft))nav.scrollLeft=on.offsetLeft-16}
   setStatus();
 }
 function render(){
@@ -878,6 +897,14 @@ function viewAccount(){
     h+=`<p>Придумайте новый пароль для <b>${esc(session.user.email||'')}</b>.</p>
       <form class="authform" data-form="newpass">${passField('new-password','Новый пароль, не короче 6 символов')}
         <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Сохраняю…':'Сохранить пароль'}</button></div></form>`;
+  }else if(session&&conflict){
+    const rt=conflict.remote?conflict.remote.cycle.title:'';
+    h+=conflict.kind==='two'
+      ?`<p>В аккаунте <b>${esc(session.user.email||'')}</b> уже есть цикл «${esc(rt)}», а на этом устройстве другой — «${esc(S.cycle.title)}». Какой оставить? Второй будет заменён.</p>
+        <p class="hint">Если сомневаетесь, сначала скачайте резервную копию ниже.</p>
+        <div class="row-btns"><button class="btn primary" data-act="sync:cloud">Оставить из аккаунта</button><button class="btn" data-act="sync:local">Оставить с этого устройства</button><button class="btn ghost" data-act="auth:out">Выйти</button></div>`
+      :`<p>На этом устройстве цикл из другого аккаунта, а в аккаунте <b>${esc(session.user.email||'')}</b> пока пусто.</p>
+        <div class="row-btns"><button class="btn primary" data-act="sync:fresh">Начать с чистого листа</button><button class="btn" data-act="sync:local">Перенести этот цикл в аккаунт</button><button class="btn ghost" data-act="auth:out">Выйти</button></div>`;
   }else if(session){
     h+=`<p>Вы вошли как <b>${esc(session.user.email||'')}</b>. Изменения сохраняются на устройстве и отправляются в облако.</p>
       ${syncErr?`<p class="notice">Сейчас нет связи с сервером. Ничего не потеряется: данные отправятся, как только связь появится.</p>`:''}
@@ -956,13 +983,19 @@ function act(key,btn){
       if(p[1]==='show'){S=exampleState();ui.week=curWeek();ui.tab='week';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
       else{try{const r=localStorage.getItem(LS_KEY);S=r?migrate(JSON.parse(r)):blankState()}catch(e){S=blankState()}if(isExampleData(S))S=blankState();ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
       break;
-    case 'resetall':if(arm(key,btn)){S=blankState();ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
+    case 'resetall':if(arm(key,btn)){const keep={skin:S.skin,owner:S.owner};S=Object.assign(blankState(),keep);ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
     case 'auth':
       if(p[1]==='eye'){const i=document.getElementById('au-pass');if(i){const show=i.type==='password';i.type=show?'text':'password';btn.textContent=show?'Скрыть':'Показать';btn.setAttribute('aria-label',show?'Скрыть пароль':'Показать пароль');i.focus()}}
       else if(p[1]==='in'||p[1]==='up'||p[1]==='forgot'){auth.mode=p[1];auth.msg='';auth.info='';render();focusId('au-email')}
       else if(p[1]==='out'&&sb){sb.auth.signOut().catch(()=>{});auth.mode='in';auth.msg='Вы вышли. Данные остались на этом устройстве.';render()}
       break;
-    case 'sync':if(session){if(dirty)flush();else{dirty=true;flush()}}break;
+    case 'sync':
+      if(!session)break;
+      if(p[1]==='cloud'&&conflict&&conflict.remote){const r=conflict.remote;conflict=null;adopt(r);toast('Оставлен цикл из аккаунта')}
+      else if(p[1]==='local'&&conflict){conflict=null;S.owner=session.user.id;S.updatedAt=Date.now();saveLocal();dirty=true;flush();render();toast('Цикл с устройства сохранён в аккаунт')}
+      else if(p[1]==='fresh'&&conflict){conflict=null;const sk=S.skin;S=blankState();S.skin=sk;S.owner=session.user.id;S.updatedAt=Date.now();saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();dirty=true;flush();ui.tab='week';render()}
+      else if(p[1]==='now'&&!conflict){dirty=true;flush()}
+      break;
     case 'backup':
       if(p[1]==='save'){
         const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');
@@ -1043,6 +1076,11 @@ document.addEventListener('change',e=>{
   const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!d.cycle||!Array.isArray(d.goals))throw 0;pendingImport=migrate(d);render()}catch(err){toast('Этот файл не похож на резервную копию 12 недель')}};
   r.readAsText(file);
+});
+
+window.addEventListener('storage',e=>{
+  if(e.key!==LS_KEY||!e.newValue||S.isExample)return;
+  try{const x=migrate(JSON.parse(e.newValue));if((x.updatedAt||0)>(S.updatedAt||0)&&!isEditing()){S=x;checkUnlocks(true);ui.lastXP=totalXP();render()}}catch(err){}
 });
 
 /* ---------- boot ---------- */
