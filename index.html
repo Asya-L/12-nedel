@@ -62,6 +62,12 @@ p{margin:0}
 .status{font-family:var(--font-mono);font-size:11px;letter-spacing:.02em;color:var(--muted)}
 .status{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted)}
 .status:hover{color:var(--ink)}
+.passwrap{position:relative;display:block}
+.passwrap .in{padding-right:96px}
+.passeye{position:absolute;right:6px;top:50%;transform:translateY(-50%);appearance:none;border:0;background:var(--surface);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer}
+.passeye:hover{color:var(--ink)}
+#au-layout{color:var(--xp);font-weight:500}
+.authform .linkbtn{align-self:flex-start;font-size:14px}
 .row-btns{display:flex;gap:8px;flex-wrap:wrap}
 .authform{display:flex;flex-direction:column;gap:12px;max-width:420px}
 .in.code{font-family:var(--font-mono);font-size:20px;letter-spacing:.2em}
@@ -617,6 +623,7 @@ async function initSync(){
     sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     sb.auth.onAuthStateChange((ev,s)=>{
       session=s;
+      if(ev==='PASSWORD_RECOVERY'){auth.mode='newpass';auth.msg='';auth.info='';ui.tab='account';setTimeout(()=>{render();focusId('au-pass')},0)}
       if(s&&s.user.id!==lastUid){lastUid=s.user.id;setTimeout(()=>pull(true),0)}
       if(!s){lastUid=null;dirty=false}
       setStatus();if(ui.tab==='account')render();
@@ -860,23 +867,38 @@ function skinPicker(){
       <span class="skin-prev" style="background:${k.bg};color:${k.ink}"><b style="font-family:${k.font}">12</b><span>${k.dots.map(c=>`<i style="background:${c}"></i>`).join('')}</span></span>
       <span class="skin-name">${k.name}</span><span class="skin-desc">${k.desc}</span></button>`).join('')}</div></section>`;
 }
+function passField(ac,ph){
+  return `<label class="f">Пароль<span class="passwrap"><input class="in" id="au-pass" type="password" autocomplete="${ac}" minlength="6" placeholder="${ph}" required><button class="passeye" type="button" data-act="auth:eye" aria-label="Показать пароль">Показать</button></span><span class="hint" id="au-layout" hidden>Похоже, включена русская раскладка</span></label>`;
+}
 function viewAccount(){
   let h=skinPicker()+`<section class="card"><div class="sec-row"><h2 class="sec">Синхронизация</h2><span class="hint">Один цикл на телефоне и компьютере</span></div>`;
   if(!SYNC_READY){
     h+=`<p>Синхронизация пока не настроена. Данные хранятся только в этом браузере.</p><p class="hint">Чтобы включить её, впишите адрес проекта Supabase и публичный ключ в файл config.js.</p>`;
+  }else if(session&&auth.mode==='newpass'){
+    h+=`<p>Придумайте новый пароль для <b>${esc(session.user.email||'')}</b>.</p>
+      <form class="authform" data-form="newpass">${passField('new-password','Новый пароль, не короче 6 символов')}
+        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Сохраняю…':'Сохранить пароль'}</button></div></form>`;
   }else if(session){
     h+=`<p>Вы вошли как <b>${esc(session.user.email||'')}</b>. Изменения сохраняются на устройстве и отправляются в облако.</p>
       ${syncErr?`<p class="notice">Сейчас нет связи с сервером. Ничего не потеряется: данные отправятся, как только связь появится.</p>`:''}
       <div class="row-btns"><button class="btn" data-act="sync:now">Синхронизировать сейчас</button><button class="btn ghost" data-act="auth:out">Выйти</button></div>`;
+  }else if(auth.mode==='forgot'){
+    h+=`<p>Пришлём на почту ссылку для смены пароля. Откройте её на этом же устройстве.</p>
+      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
+      <form class="authform" data-form="forgot">
+        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
+        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Отправляю…':'Прислать ссылку'}</button>
+        <button class="btn ghost" type="button" data-act="auth:in">Назад ко входу</button></div></form>`;
   }else{
     const up=auth.mode==='up';
     h+=`<p>${up?'Создайте аккаунт, и цикл будет одинаковым на всех ваших устройствах.':'Войдите, и цикл будет одинаковым на всех ваших устройствах.'}</p>
       ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
       <form class="authform" data-form="${up?'signup':'signin'}">
         <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
-        <label class="f">Пароль<input class="in" id="au-pass" type="password" autocomplete="${up?'new-password':'current-password'}" minlength="6" placeholder="${up?'Не короче 6 символов':''}" required></label>
+        ${passField(up?'new-password':'current-password',up?'Не короче 6 символов':'')}
         <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Подождите…':(up?'Создать аккаунт':'Войти')}</button>
-        <button class="btn ghost" type="button" data-act="auth:${up?'in':'up'}">${up?'У меня уже есть аккаунт':'Создать аккаунт'}</button></div></form>`;
+        <button class="btn ghost" type="button" data-act="auth:${up?'in':'up'}">${up?'У меня уже есть аккаунт':'Создать аккаунт'}</button></div>
+        ${up?'':'<button class="linkbtn" type="button" data-act="auth:forgot">Забыли пароль?</button>'}</form>`;
   }
   if(auth.msg)h+=`<p class="formmsg">${esc(auth.msg)}</p>`;
   h+=`</section>
@@ -936,7 +958,8 @@ function act(key,btn){
       break;
     case 'resetall':if(arm(key,btn)){S=blankState();ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
     case 'auth':
-      if(p[1]==='in'||p[1]==='up'){auth.mode=p[1];auth.msg='';auth.info='';render();focusId('au-email')}
+      if(p[1]==='eye'){const i=document.getElementById('au-pass');if(i){const show=i.type==='password';i.type=show?'text':'password';btn.textContent=show?'Скрыть':'Показать';btn.setAttribute('aria-label',show?'Скрыть пароль':'Показать пароль');i.focus()}}
+      else if(p[1]==='in'||p[1]==='up'||p[1]==='forgot'){auth.mode=p[1];auth.msg='';auth.info='';render();focusId('au-email')}
       else if(p[1]==='out'&&sb){sb.auth.signOut().catch(()=>{});auth.mode='in';auth.msg='Вы вышли. Данные остались на этом устройстве.';render()}
       break;
     case 'sync':if(session){if(dirty)flush();else{dirty=true;flush()}}break;
@@ -977,9 +1000,26 @@ document.addEventListener('change',e=>{
   else commit(false);
 });
 
+document.addEventListener('input',e=>{if(e.target.id!=='au-pass')return;const h=document.getElementById('au-layout');if(h)h.hidden=!/[а-яё]/i.test(e.target.value)});
 document.addEventListener('submit',async e=>{
   const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();
   if(!sb||auth.busy)return;
+  if(f.dataset.form==='newpass'){
+    const password=document.getElementById('au-pass').value||'';if(password.length<6){auth.msg='Нужно не меньше 6 символов.';render();return}
+    auth.busy=true;auth.msg='';render();
+    const {error}=await sb.auth.updateUser({password});auth.busy=false;
+    if(error)auth.msg=/same|different/i.test(error.message)?'Этот пароль совпадает со старым. Придумайте другой.':'Не получилось сохранить пароль: '+error.message;
+    else{auth.mode='in';toast('Новый пароль сохранён','lvl');try{history.replaceState(null,'',location.pathname)}catch(e){}}
+    render();return;
+  }
+  if(f.dataset.form==='forgot'){
+    const email=(document.getElementById('au-email').value||'').trim();if(!email)return;
+    auth.email=email;auth.busy=true;auth.msg='';render();
+    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});auth.busy=false;
+    if(error)auth.msg=/rate|security purposes|seconds/i.test(error.message)?'Письма можно отправлять не чаще пары раз в час. Подождите немного и попробуйте снова.':'Не получилось отправить письмо: '+error.message;
+    else auth.info='Если такой аккаунт есть, на '+email+' придёт письмо со ссылкой. Откройте её в этом же браузере и задайте новый пароль. Проверьте и «Спам».';
+    render();return;
+  }
   const email=(document.getElementById('au-email').value||'').trim(),password=document.getElementById('au-pass').value||'';
   if(!email||!password)return;
   auth.email=email;auth.busy=true;auth.msg='';render();
@@ -987,12 +1027,13 @@ document.addEventListener('submit',async e=>{
     const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
     auth.busy=false;
     if(error)auth.msg=/rate|security purposes/i.test(error.message)?'Слишком много попыток. Подождите немного и попробуйте снова.':/registered|exists/i.test(error.message)?'Аккаунт с этой почтой уже есть. Войдите с паролем.':/password/i.test(error.message)?'Пароль слишком простой: нужно не меньше 6 символов.':'Не получилось создать аккаунт: '+error.message;
+    else if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){auth.mode='in';auth.msg='Аккаунт с этой почтой уже есть. Войдите с паролем или нажмите «Забыли пароль?».'}
     else if(data&&data.session){toast('Аккаунт создан. Синхронизирую…','lvl')}
     else{auth.mode='in';auth.info='Мы отправили письмо на '+email+'. Нажмите в нём ссылку для подтверждения, затем вернитесь сюда и войдите с паролем. Письмо может прийти через пару минут, проверьте «Спам».'}
   }else{
     const {error}=await sb.auth.signInWithPassword({email,password});
     auth.busy=false;
-    if(error)auth.msg=/confirm/i.test(error.message)?'Почта ещё не подтверждена. Нажмите ссылку в письме от Supabase и попробуйте снова.':/invalid/i.test(error.message)?'Неверная почта или пароль.':'Не получилось войти: '+error.message;
+    if(error)auth.msg=/confirm/i.test(error.message)?'Почта ещё не подтверждена. Нажмите ссылку в письме от Supabase и попробуйте снова.':/invalid/i.test(error.message)?'Неверная почта или пароль. Проверьте раскладку клавиатуры или нажмите «Забыли пароль?».':'Не получилось войти: '+error.message;
     else{auth.info='';toast('Вход выполнен. Синхронизирую…','lvl')}
   }
   render();
