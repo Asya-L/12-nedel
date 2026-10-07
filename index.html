@@ -275,6 +275,10 @@ details.rv dd{margin:0;white-space:pre-wrap}
 .rules li::before{content:counter(r);font-family:var(--font-display);font-weight:500;font-size:13px;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
 .rules b{display:block}
 
+.gate{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start;margin-top:12px}
+@media (max-width:720px){.gate{grid-template-columns:1fr;gap:18px}}
+.gate-pitch{display:flex;flex-direction:column;gap:14px;padding-top:12px;min-width:0}
+.gate-card{gap:12px}
 .welcome{display:flex;flex-direction:column;gap:18px}
 .wl-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px}
 @media (max-width:620px){.wl-hero{grid-template-columns:1fr;padding:22px}.wl-art{order:-1}}
@@ -494,15 +498,16 @@ function migrate(s){
   s.weeks=w;s.skin=SKINS.some(k=>k.id===s.skin)?s.skin:'classic';s.history=s.history||[];s.ach=s.ach||{};s.xpBank=+s.xpBank||0;
   return s;
 }
-let S;
-let hadLocal=false;
 function isExampleData(x){
   if(!x)return false;if(x.isExample)return true;
   const gs=x.goals||[];
   return gs.length>0&&gs.every(g=>/^g\d$/.test(g.id)&&(g.tactics||[]).every(t=>/^t\d$/.test(t.id)));
 }
-try{const raw=localStorage.getItem(LS_KEY);if(raw){const x=migrate(JSON.parse(raw));if(isExampleData(x)){localStorage.removeItem(LS_KEY)}else{S=x;hadLocal=true}}}catch(e){}
-if(!S)S=blankState();
+const keyFor=uid=>LS_KEY+':'+uid;
+function loadLegacy(){try{const raw=localStorage.getItem(LS_KEY);if(!raw)return null;const x=migrate(JSON.parse(raw));if(isExampleData(x)){localStorage.removeItem(LS_KEY);return null}return x}catch(e){return null}}
+function savedSkin(){try{return localStorage.getItem('tw12-skin')||'classic'}catch(e){return 'classic'}}
+function freshState(){const x=blankState();x.skin=savedSkin();return x}
+let S=freshState();
 
 const ui={tab:'week',week:1,armed:null,lastXP:0};
 
@@ -571,8 +576,38 @@ const CFG=window.APP_CONFIG||{};
 const SYNC_READY=!!(CFG.supabaseUrl&&CFG.supabaseKey&&!/YOUR_|ВАШ/.test(CFG.supabaseUrl+CFG.supabaseKey)&&window.supabase);
 let sb=null,session=null,lastUid=null,saveTimer=null,saving=false,dirty=false,syncErr='';
 const auth={mode:'in',email:'',busy:false,msg:'',info:''};
-let pendingImport=null,installPrompt=null,conflict=null;
-function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
+let pendingImport=null,installPrompt=null,conflict=null,gateReady=false,legacyPending=false,confirmOut=false;
+if(!SYNC_READY){const x=loadLegacy();if(x)S=x;gateReady=true}
+function saveLocal(){try{
+  localStorage.setItem('tw12-skin',S.skin||'classic');
+  if(session)localStorage.setItem(keyFor(session.user.id),JSON.stringify(S));
+  else if(!SYNC_READY)localStorage.setItem(LS_KEY,JSON.stringify(S));
+}catch(e){}}
+function dropLegacy(){if(!legacyPending)return;legacyPending=false;try{localStorage.removeItem(LS_KEY)}catch(e){}}
+function openAccount(uid){
+  let cache=null;try{const r=localStorage.getItem(keyFor(uid));if(r)cache=migrate(JSON.parse(r))}catch(e){}
+  legacyPending=false;
+  if(cache&&!isExampleData(cache)){cache.owner=uid;S=cache}
+  else{
+    S=freshState();
+    const leg=loadLegacy();
+    if(leg&&hasContent(leg)&&(!leg.owner||leg.owner===uid)){S=leg;legacyPending=true}
+  }
+  ui.week=curWeek();ui.tab=ui.tab==='account'&&auth.mode!=='newpass'?'week':ui.tab;checkUnlocks(true);ui.lastXP=totalXP();
+  setTimeout(()=>pull(true),0);
+}
+function closeAccount(){S=freshState();pendingImport=null;ui.tab='week';ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP()}
+async function signOutFlow(){
+  if(!session)return;
+  const uid=session.user.id;
+  if(dirty&&!conflict)await flush();
+  if((dirty||saving)&&!conflict&&!confirmOut){confirmOut=true;auth.msg='Последние изменения не отправлены: нет связи с сервером. Если выйти сейчас, они пропадут. Нажмите «Выйти без отправки», чтобы всё равно выйти.';render();return}
+  confirmOut=false;clearTimeout(saveTimer);dirty=false;
+  try{localStorage.removeItem(keyFor(uid))}catch(e){}
+  auth.mode='in';auth.msg='';auth.info='Вы вышли. Данные удалены с этого устройства и хранятся в вашем аккаунте.';
+  try{await sb.auth.signOut({scope:'local'})}catch(e){}
+  if(session){session=null;lastUid=null;closeAccount();render()}
+}
 function scheduleSave(){
   if(S.isExample){setStatus();return}
   S.rev=(S.rev||0)+1;S.updatedAt=Date.now();saveLocal();
@@ -595,7 +630,7 @@ function hasContent(x){
     Object.values(x.weeks).some(w=>w.reviewed||Object.values(w.done).some(v=>v>0)||Object.values(w.review).some(v=>String(v).trim()));
 }
 function sameData(a,b){const k=x=>JSON.stringify([x.cycle,x.vision,x.goals,x.weeks,x.history,x.xpBank]);return k(a)===k(b)}
-function adopt(remote){if(session)remote.owner=session.user.id;S=remote;saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();render()}
+function adopt(remote){if(session)remote.owner=session.user.id;S=remote;dropLegacy();saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();render()}
 async function pull(initial){
   if(!session)return;
   try{
@@ -619,6 +654,7 @@ async function pull(initial){
       if(S.owner&&S.owner!==uid&&hasContent(S)){conflict={kind:'foreign'};ui.tab='account';render()}
       else{S.owner=uid;saveLocal();dirty=true;flush()}
     }
+    if(initial&&!conflict)dropLegacy();
     syncErr='';
   }catch(e){syncErr=(e&&e.message)||'нет связи'}
   setStatus();
@@ -627,7 +663,7 @@ function setStatus(){
   const el=document.getElementById('status');if(!el)return;
   let t,c='status';
   if(!SYNC_READY){t='Только на этом устройстве';c+=' local'}
-  else if(!session){t='Войти для синхронизации';c+=' local'}
+  else if(!session){t='Не выполнен вход';c+=' local'}
   else if(conflict){t='Выберите, какой цикл оставить';c+=' busy'}
   else if(syncErr){t='Нет связи · сохранено на устройстве';c+=' busy'}
   else if(dirty||saving){t='Синхронизирую…';c+=' busy'}
@@ -640,15 +676,16 @@ async function initSync(){
   try{
     sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     sb.auth.onAuthStateChange((ev,s)=>{
-      session=s;
+      const had=!!session;session=s;
       if(ev==='PASSWORD_RECOVERY'){auth.mode='newpass';auth.msg='';auth.info='';ui.tab='account';setTimeout(()=>{render();focusId('au-pass')},0)}
-      if(s&&s.user.id!==lastUid){lastUid=s.user.id;setTimeout(()=>pull(true),0)}
-      if(!s){lastUid=null;dirty=false;conflict=null}
-      setStatus();if(ui.tab==='account')render();
+      if(s&&s.user.id!==lastUid){lastUid=s.user.id;openAccount(s.user.id)}
+      if(!s){lastUid=null;dirty=false;conflict=null;confirmOut=false;clearTimeout(saveTimer);if(had)closeAccount()}
+      const first=!gateReady;gateReady=true;
+      setStatus();if(first||had!==!!s||ui.tab==='account'||ev==='PASSWORD_RECOVERY')render();
     });
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(dirty)flush();pull(false)}});
     window.addEventListener('online',()=>{if(dirty)flush();pull(false)});
-  }catch(e){sb=null}
+  }catch(e){sb=null;gateReady=true;render()}
   setStatus();
 }
 
@@ -668,6 +705,14 @@ function renderHeader(){
 }
 function render(){
   document.documentElement.dataset.skin=S.skin||'classic';
+  const tabs=document.getElementById('tabs');
+  if(SYNC_READY&&(!gateReady||!session)){
+    tabs.hidden=true;tabs.innerHTML='';
+    document.getElementById('top').innerHTML=`<div class="brand"><div class="brand-name">12<span>/</span>недель</div></div>`;
+    document.getElementById('main').innerHTML=gateReady?viewGate():`<p class="hint" role="status">Загрузка…</p>`;
+    return;
+  }
+  tabs.hidden=false;
   renderHeader();
   const m=document.getElementById('main');
   let h=S.isExample?`<div class="banner"><p><b>Это пример цикла.</b> Пощёлкайте по кружкам и неделям, чтобы посмотреть, как всё работает. Ваши данные он не затрагивает.</p>
@@ -694,14 +739,12 @@ function ring(sc){
   return `<svg viewBox="0 0 132 132" class="ring ${cls(sc)}" aria-hidden="true"><circle cx="66" cy="66" r="${r}" class="ring-bg"/>${v>0?`<circle cx="66" cy="66" r="${r}" class="ring-fg" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 66 66)"/>`:''}<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="ring-tick"/></svg>`;
 }
 function viewWelcome(){
-  const signedOut=SYNC_READY&&!session;
   return `<section class="welcome">
     <div class="wl-hero">
       <div class="wl-text"><div class="eyebrow">Новый цикл · с ${fmtDate(S.cycle.start)}</div>
         <h1 class="wl-title">Ваш год длится<br><span>12 недель</span></h1>
         <p class="wl-lead">Выберите одну–три цели, распишите конкретные действия на каждую неделю и отмечайте их. Неделя засчитывается, когда выполнено 85% задуманного.</p>
         <div class="row-btns"><button class="btn primary big" data-act="tab:plan">Составить план</button><button class="btn ghost" data-act="ex:show">Посмотреть пример</button></div>
-        ${signedOut?`<p class="hint">Уже ведёте цикл на другом устройстве? <button class="linkbtn" data-act="tab:account">Войдите</button>, и он появится здесь.</p>`:''}
       </div>
       <div class="wl-art" aria-hidden="true">${[...Array(12)].map((_,i)=>`<i style="--d:${i}"></i>`).join('')}<b>13</b></div>
     </div>
@@ -889,6 +932,37 @@ function skinPicker(){
 function passField(ac,ph){
   return `<label class="f">Пароль<span class="passwrap"><input class="in" id="au-pass" type="password" autocomplete="${ac}" minlength="6" placeholder="${ph}" required><button class="passeye" type="button" data-act="auth:eye" aria-label="Показать пароль">Показать</button></span><span class="hint" id="au-layout" hidden>Похоже, включена русская раскладка</span></label>`;
 }
+function authForms(){
+  let h='';
+  if(auth.mode==='forgot'){
+    h+=`<h2 class="sec">Восстановление пароля</h2><p>Пришлём на почту ссылку для смены пароля. Откройте её на этом же устройстве.</p>
+      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
+      <form class="authform" data-form="forgot">
+        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
+        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Отправляю…':'Прислать ссылку'}</button>
+        <button class="btn ghost" type="button" data-act="auth:in">Назад ко входу</button></div></form>`;
+  }else{
+    const up=auth.mode==='up';
+    h+=`<h2 class="sec">${up?'Создать аккаунт':'Вход'}</h2>
+      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
+      <form class="authform" data-form="${up?'signup':'signin'}">
+        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
+        ${passField(up?'new-password':'current-password',up?'Не короче 6 символов':'')}
+        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Подождите…':(up?'Создать аккаунт':'Войти')}</button>
+        <button class="btn ghost" type="button" data-act="auth:${up?'in':'up'}">${up?'У меня уже есть аккаунт':'Создать аккаунт'}</button></div>
+        ${up?'':'<button class="linkbtn" type="button" data-act="auth:forgot">Забыли пароль?</button>'}</form>`;
+  }
+  if(auth.msg)h+=`<p class="formmsg" role="alert">${esc(auth.msg)}</p>`;
+  return h;
+}
+function viewGate(){
+  return `<section class="gate">
+    <div class="gate-pitch"><div class="eyebrow">Система «12 недель в году»</div>
+      <h1 class="wl-title">Ваш год длится<br><span>12 недель</span></h1>
+      <p class="wl-lead">Цели на 12 недель, действия на каждую неделю и честная оценка исполнения. Ваш цикл хранится в аккаунте и одинаков на телефоне и компьютере.</p></div>
+    <div class="card gate-card">${authForms()}</div>
+  </section>`;
+}
 function viewAccount(){
   let h=skinPicker()+`<section class="card"><div class="sec-row"><h2 class="sec">Синхронизация</h2><span class="hint">Один цикл на телефоне и компьютере</span></div>`;
   if(!SYNC_READY){
@@ -908,24 +982,8 @@ function viewAccount(){
   }else if(session){
     h+=`<p>Вы вошли как <b>${esc(session.user.email||'')}</b>. Изменения сохраняются на устройстве и отправляются в облако.</p>
       ${syncErr?`<p class="notice">Сейчас нет связи с сервером. Ничего не потеряется: данные отправятся, как только связь появится.</p>`:''}
-      <div class="row-btns"><button class="btn" data-act="sync:now">Синхронизировать сейчас</button><button class="btn ghost" data-act="auth:out">Выйти</button></div>`;
-  }else if(auth.mode==='forgot'){
-    h+=`<p>Пришлём на почту ссылку для смены пароля. Откройте её на этом же устройстве.</p>
-      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
-      <form class="authform" data-form="forgot">
-        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
-        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Отправляю…':'Прислать ссылку'}</button>
-        <button class="btn ghost" type="button" data-act="auth:in">Назад ко входу</button></div></form>`;
-  }else{
-    const up=auth.mode==='up';
-    h+=`<p>${up?'Создайте аккаунт, и цикл будет одинаковым на всех ваших устройствах.':'Войдите, и цикл будет одинаковым на всех ваших устройствах.'}</p>
-      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
-      <form class="authform" data-form="${up?'signup':'signin'}">
-        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
-        ${passField(up?'new-password':'current-password',up?'Не короче 6 символов':'')}
-        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Подождите…':(up?'Создать аккаунт':'Войти')}</button>
-        <button class="btn ghost" type="button" data-act="auth:${up?'in':'up'}">${up?'У меня уже есть аккаунт':'Создать аккаунт'}</button></div>
-        ${up?'':'<button class="linkbtn" type="button" data-act="auth:forgot">Забыли пароль?</button>'}</form>`;
+      <div class="row-btns"><button class="btn" data-act="sync:now">Синхронизировать сейчас</button><button class="btn ${confirmOut?'danger':'ghost'}" data-act="auth:out">${confirmOut?'Выйти без отправки':'Выйти'}</button></div>
+      <p class="hint">При выходе цикл удаляется с этого устройства и остаётся в аккаунте.</p>`;
   }
   if(auth.msg)h+=`<p class="formmsg">${esc(auth.msg)}</p>`;
   h+=`</section>
@@ -981,18 +1039,18 @@ function act(key,btn){
     case 'deltac':if(arm(key,btn)){const g=goal(p[1]);if(g)g.tactics=g.tactics.filter(t=>t.id!==p[2]);commit()}break;
     case 'ex':
       if(p[1]==='show'){S=exampleState();ui.week=curWeek();ui.tab='week';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
-      else{try{const r=localStorage.getItem(LS_KEY);S=r?migrate(JSON.parse(r)):blankState()}catch(e){S=blankState()}if(isExampleData(S))S=blankState();ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
+      else{try{const r=localStorage.getItem(session?keyFor(session.user.id):LS_KEY);S=r?migrate(JSON.parse(r)):freshState()}catch(e){S=freshState()}if(isExampleData(S))S=freshState();if(session)S.owner=session.user.id;ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
       break;
     case 'resetall':if(arm(key,btn)){const keep={skin:S.skin,owner:S.owner};S=Object.assign(blankState(),keep);ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
     case 'auth':
       if(p[1]==='eye'){const i=document.getElementById('au-pass');if(i){const show=i.type==='password';i.type=show?'text':'password';btn.textContent=show?'Скрыть':'Показать';btn.setAttribute('aria-label',show?'Скрыть пароль':'Показать пароль');i.focus()}}
       else if(p[1]==='in'||p[1]==='up'||p[1]==='forgot'){auth.mode=p[1];auth.msg='';auth.info='';render();focusId('au-email')}
-      else if(p[1]==='out'&&sb){sb.auth.signOut().catch(()=>{});auth.mode='in';auth.msg='Вы вышли. Данные остались на этом устройстве.';render()}
+      else if(p[1]==='out'&&sb){signOutFlow()}
       break;
     case 'sync':
       if(!session)break;
-      if(p[1]==='cloud'&&conflict&&conflict.remote){const r=conflict.remote;conflict=null;adopt(r);toast('Оставлен цикл из аккаунта')}
-      else if(p[1]==='local'&&conflict){conflict=null;S.owner=session.user.id;S.updatedAt=Date.now();saveLocal();dirty=true;flush();render();toast('Цикл с устройства сохранён в аккаунт')}
+      if(p[1]==='cloud'&&conflict&&conflict.remote){const r=conflict.remote;conflict=null;legacyPending=true;adopt(r);toast('Оставлен цикл из аккаунта')}
+      else if(p[1]==='local'&&conflict){conflict=null;legacyPending=true;dropLegacy();S.owner=session.user.id;S.updatedAt=Date.now();saveLocal();dirty=true;flush();render();toast('Цикл с устройства сохранён в аккаунт')}
       else if(p[1]==='fresh'&&conflict){conflict=null;const sk=S.skin;S=blankState();S.skin=sk;S.owner=session.user.id;S.updatedAt=Date.now();saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();dirty=true;flush();ui.tab='week';render()}
       else if(p[1]==='now'&&!conflict){dirty=true;flush()}
       break;
@@ -1079,7 +1137,7 @@ document.addEventListener('change',e=>{
 });
 
 window.addEventListener('storage',e=>{
-  if(e.key!==LS_KEY||!e.newValue||S.isExample)return;
+  if(!session||e.key!==keyFor(session.user.id)||!e.newValue||S.isExample)return;
   try{const x=migrate(JSON.parse(e.newValue));if((x.updatedAt||0)>(S.updatedAt||0)&&!isEditing()){S=x;checkUnlocks(true);ui.lastXP=totalXP();render()}}catch(err){}
 });
 

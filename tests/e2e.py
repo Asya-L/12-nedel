@@ -140,7 +140,10 @@ class T:
     def __init__(self, browser, url, be):
         self.browser, self.url, self.be = browser, url, be
         self.errors, self.pages, self.ctxs = [], [], []
-    async def device(self, state=None, viewport=(400, 860), scheme='light', storage_broken=False, now=NOW, raw=None, hash=''):
+    async def device(self, state=None, viewport=(400, 860), scheme='light', storage_broken=False, now=NOW, raw=None, hash='',
+                     login=None, legacy=None, email='me@test.io'):
+        """state — цикл вошедшего пользователя (он же в облаке); legacy — данные со старой версии без входа."""
+        if login is None: login = state is not None or raw is not None
         ctx = await self.browser.new_context(viewport={'width': viewport[0], 'height': viewport[1]}, color_scheme=scheme,
                                              timezone_id=TZ, locale='ru-RU', accept_downloads=True)
         self.ctxs.append(ctx)
@@ -151,9 +154,18 @@ class T:
             if 'fonts.g' in u: return await r.abort()
             await r.continue_()
         await ctx.route('**/*', route)
-        if state is not None or raw is not None:
-            payload = raw if raw is not None else json.dumps(state)
-            await ctx.add_init_script(f"if(!sessionStorage.getItem('__seeded')){{localStorage.setItem({json.dumps(LS)},{json.dumps(payload)});sessionStorage.setItem('__seeded','1')}}")
+        seed = {}
+        if login:
+            u = self.be.users.get(email) or self.be.add_user(email, 'secret1')
+            seed['sb-mock-session'] = json.dumps({'user': {'id': u['id'], 'email': email}})
+            if state is not None:
+                st = json.loads(json.dumps(state)); st['owner'] = u['id']
+                self.be.rows.setdefault(u['id'], {'state': json.loads(json.dumps(st)), 'updated_at': 'x'})
+                seed[f'{LS}:{u["id"]}'] = json.dumps(st)
+            if raw is not None: seed[f'{LS}:{u["id"]}'] = raw
+        if legacy is not None: seed[LS] = json.dumps(legacy)
+        if seed:
+            await ctx.add_init_script(f"if(!sessionStorage.getItem('__seeded')){{const s={json.dumps(seed)};for(const k in s)localStorage.setItem(k,s[k]);sessionStorage.setItem('__seeded','1')}}")
         if storage_broken:
             await ctx.add_init_script("Object.defineProperty(window,'localStorage',{get(){throw new Error('denied')}})")
         page = await ctx.new_page()
@@ -172,7 +184,8 @@ async def act(p, key, wait=120):
     await p.click(f'[data-act="{key}"]'); await p.wait_for_timeout(wait)
 async def txt(p, sel): return (await p.text_content(sel) or '').strip()
 async def stored(p):
-    return await p.evaluate(f"(()=>{{try{{return JSON.parse(localStorage.getItem({json.dumps(LS)}))}}catch(e){{return null}}}})()")
+    return await p.evaluate(f"(()=>{{try{{const k=Object.keys(localStorage).find(k=>k.startsWith({json.dumps(LS+':')}));return k?JSON.parse(localStorage.getItem(k)):null}}catch(e){{return null}}}})()")
+async def keys(p): return await p.evaluate("Object.keys(localStorage)")
 async def overflow(p):
     return await p.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")
 async def ring(p): return await txt(p, '.ring-num .big')
@@ -180,8 +193,8 @@ async def xp(p):
     lab = await p.get_attribute('.lvlchip', 'aria-label'); return int(re.search(r'(\d+) XP', lab).group(1))
 async def level(p): return int(await txt(p, '.lvl-badge'))
 async def signin(p, email, pw):
-    await act(p, 'tab:account')
-    if await p.locator('[data-act="auth:in"]').count() and await p.locator('form[data-form=signup]').count(): await act(p, 'auth:in')
+    if not await p.locator('.gate').count(): await act(p, 'tab:account')
+    if await p.locator('form[data-form=signup]').count(): await act(p, 'auth:in')
     await p.fill('#au-email', email); await p.fill('#au-pass', pw)
     await p.click('form[data-form=signin] button[type=submit]'); await p.wait_for_timeout(500)
 async def pip(p, i): await p.click(f'.pip >> nth={i}'); await p.wait_for_timeout(80)
@@ -209,44 +222,52 @@ async def a11y(p): return await p.evaluate(A11Y_JS)
 
 # ================================================================= CASES
 # ---------- F01
-@case('F01-H1', 'Первый запуск: приветствие')
+@case('F01-H1', 'Без входа виден только экран входа')
 async def _(t):
     p = await t.device()
-    ok(await p.locator('.welcome').count() == 1, 'нет приветствия')
-    ok('Мой первый цикл' in await txt(p, '.brand-sub'), 'название цикла по умолчанию')
-    ok(await level(p) == 1, 'уровень не 1')
-    ok(await p.get_by_role('button', name='Составить план').count() == 1, 'нет кнопки «Составить план»')
-    ok(await stored(p) is None, 'пустое состояние не должно сохраняться до действий')
+    ok(await p.locator('.gate').count() == 1, 'нет экрана входа')
+    ok(await p.locator('.tab').count() == 0 and await p.locator('.lvlchip').count() == 0, 'приложение доступно без входа')
+    ok(await p.get_by_role('button', name='Войти').count() == 1, 'нет кнопки «Войти»')
+    ok(await keys(p) == [], f'без входа что-то сохранено: {await keys(p)}')
 
-@case('F01-H2', '«Составить план» открывает План')
+@case('F01-H2', 'После входа в пустой аккаунт — приветствие и план')
 async def _(t):
-    p = await t.device(); await p.get_by_role('button', name='Составить план').click()
+    t.be.add_user('me@test.io', 'secret1')
+    p = await t.device(); await signin(p, 'me@test.io', 'secret1')
+    ok(await p.locator('.welcome').count() == 1, 'нет приветствия после входа')
+    ok('Мой первый цикл' in await txt(p, '.brand-sub') and await level(p) == 1, 'не пустой цикл')
+    await p.get_by_role('button', name='Составить план').click()
     ok(await p.locator('#vi-long').count() == 1 and await p.locator('[data-act="addgoal"]').count() == 1, 'нет полей плана')
 
-@case('F01-E1', 'Старая копия примера стирается')
+@case('F01-E1', 'Старая копия примера стирается при входе')
 async def _(t):
-    st = mk_state(goals=[{'id': 'g1', 'title': 'Написать 40 страниц черновика', 'why': '', 'measure': {}, 'tactics': [{'id': 't1', 'title': 'x', 'per': 5, 'from': 1, 'to': 12}]}])
-    st['cycle']['title'] = 'Осенний цикл'
-    p = await t.device(st)
+    t.be.add_user('me@test.io', 'secret1')
+    leg = mk_state(goals=[{'id': 'g1', 'title': 'Написать 40 страниц черновика', 'why': '', 'measure': {}, 'tactics': [{'id': 't1', 'title': 'x', 'per': 5, 'from': 1, 'to': 12}]}])
+    p = await t.device(legacy=leg); await signin(p, 'me@test.io', 'secret1')
     ok(await p.locator('.welcome').count() == 1, 'копия примера не стёрта')
-    ok(await stored(p) is None, 'копия осталась в хранилище')
+    ok(LS not in await keys(p), 'копия осталась в хранилище')
 
-@case('F01-E2', 'Повреждённые данные в хранилище')
+@case('F01-E2', 'Повреждённая копия на устройстве')
 async def _(t):
-    p = await t.device(raw='{not json')
+    p = await t.device(raw='{not json'); await p.wait_for_timeout(300)
     ok(await p.locator('.welcome').count() == 1, 'нет приветствия')
 
-@case('F01-E3', 'Хранилище недоступно')
+@case('F01-E3', 'Хранилище недоступно: вход и работа в памяти')
 async def _(t):
-    p = await t.device(storage_broken=True)
-    ok(await p.locator('.welcome').count() == 1, 'нет приветствия')
+    t.be.add_user('me@test.io', 'secret1')
+    p = await t.device(storage_broken=True); await signin(p, 'me@test.io', 'secret1')
     await p.get_by_role('button', name='Составить план').click(); await act(p, 'addgoal')
     ok(await p.locator('.goalcard').count() == 1, 'не добавилась цель в памяти')
 
 @case('F01-E4', 'Ширина 360 px без прокрутки вбок')
 async def _(t):
-    p = await t.device(viewport=(360, 740))
-    ok(await overflow(p) <= 0, 'горизонтальная прокрутка')
+    p = await t.device(viewport=(360, 740)); ok(await overflow(p) <= 0, 'прокрутка на экране входа')
+    p2 = await t.device(mk_state(goals=[goal()]), viewport=(360, 740)); ok(await overflow(p2) <= 0, 'прокрутка в приложении')
+
+@case('F01-E5', 'Экран входа и приветствие без ошибок доступности')
+async def _(t):
+    p = await t.device(); r = await a11y(p); ok(not r['noName'] and not r['low'], 'вход: ' + str(r))
+    p2 = await t.device(mk_state()); r = await a11y(p2); ok(not r['noName'] and not r['low'], 'приветствие: ' + str(r))
 
 @case('F01-E6', 'Все вкладки видны на 360 px')
 async def _(t):
@@ -258,14 +279,14 @@ async def _(t):
 # ---------- F02
 @case('F02-H1', 'Пример открывается')
 async def _(t):
-    p = await t.device(); await act(p, 'ex:show')
+    p = await t.device(mk_state()); await act(p, 'ex:show')
     ok(await p.locator('.banner').count() == 1, 'нет баннера примера')
     ok(await p.locator('.goalblock').count() == 3, 'в примере не 3 цели')
 
 @case('F02-H2', 'Пример не сохраняется')
 async def _(t):
-    p = await t.device(); await act(p, 'ex:show'); await pip(p, 5); await p.wait_for_timeout(900)
-    ok(await stored(p) is None, 'пример попал в хранилище')
+    p = await t.device(mk_state()); await act(p, 'ex:show'); await pip(p, 5); await p.wait_for_timeout(900)
+    ok(not (await stored(p) or {}).get('isExample') and not (await stored(p) or {'goals':[]})['goals'], 'пример попал в хранилище')
     await p.reload(); await p.wait_for_timeout(250)
     ok(await p.locator('.welcome').count() == 1, 'после перезагрузки не приветствие')
 
@@ -280,18 +301,15 @@ async def _(t):
 
 @case('F02-H4', '«Начать свой цикл» из примера')
 async def _(t):
-    p = await t.device(); await act(p, 'ex:show'); await act(p, 'ex:clear')
+    p = await t.device(mk_state()); await act(p, 'ex:show'); await act(p, 'ex:clear')
     ok(await p.locator('[data-act="addgoal"]').count() == 1, 'не открылся План')
     ok(await p.locator('.banner').count() == 0, 'баннер примера остался')
 
-@case('F02-N1', 'Пример не уходит в облако при входе')
+@case('F02-N1', 'Пример не уходит в облако')
 async def _(t):
-    t.be.add_user('ex@test.io', 'secret1')
-    p = await t.device(); await act(p, 'ex:show'); await pip(p, 5)
-    await signin(p, 'ex@test.io', 'secret1'); await p.wait_for_timeout(1200)
-    uid = t.be.users['ex@test.io']['id']
-    row = t.be.rows.get(uid)
-    ok(row is None or not row['state'].get('isExample'), 'пример ушёл в облако')
+    p = await t.device(mk_state()); uid = t.be.users['me@test.io']['id']
+    await act(p, 'ex:show'); await pip(p, 5); await p.wait_for_timeout(1200)
+    ok(not t.be.rows[uid]['state'].get('isExample') and not t.be.rows[uid]['state']['goals'], 'пример ушёл в облако')
 
 # ---------- F03
 @case('F03-H1', 'Название цикла сохраняется')
@@ -357,7 +375,7 @@ async def _(t):
 # ---------- F05
 @case('F05-H1', 'Цель с показателем сохраняется')
 async def _(t):
-    p = await t.device(); await p.get_by_role('button', name='Составить план').click(); await act(p, 'addgoal')
+    p = await t.device(mk_state()); await p.get_by_role('button', name='Составить план').click(); await act(p, 'addgoal')
     gid = (await stored(p))['goals'][0]['id']
     await p.fill(f'#g-{gid}-title', 'Выучить 300 слов'); await p.fill(f'#g-{gid}-mn', 'Слов'); await p.fill(f'#g-{gid}-mt', '300'); await p.fill(f'#g-{gid}-mu', 'шт.')
     await p.press(f'#g-{gid}-mu', 'Tab'); await p.wait_for_timeout(300); await p.reload(); await p.wait_for_timeout(250)
@@ -625,30 +643,32 @@ async def _(t):
     ok(s['weeks']['3']['done'].get('tQ1w2e3') == 1, 'отметка из второй вкладки затёрта')
 
 # ---------- F16
-@case('F16-H1', 'Регистрация')
+@case('F16-H1', 'Регистрация с экрана входа')
 async def _(t):
-    p = await t.device(); await act(p, 'tab:account'); await act(p, 'auth:up')
+    p = await t.device(); await act(p, 'auth:up')
     await p.fill('#au-email', 'new@test.io'); await p.fill('#au-pass', 'secret1'); await p.click('form[data-form=signup] button[type=submit]'); await p.wait_for_timeout(300)
     ok('отправили письмо' in await txt(p, '.notice'), 'нет сообщения про письмо')
     ok('new@test.io' in t.be.users, 'аккаунт не создан')
+    ok(await p.locator('.tab').count() == 0, 'приложение открылось без подтверждения почты')
 
-@case('F16-H2', 'Вход')
+@case('F16-H2', 'Вход открывает приложение и облачный цикл')
 async def _(t):
-    t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(900)
+    u = t.be.add_user('me@test.io', 'secret1'); t.be.rows[u['id']] = {'state': mk_state(goals=[goal(title='Из аккаунта')]), 'updated_at': 'x'}
+    p = await t.device(); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(500)
     ok(await txt(p, '#status') == 'Синхронизировано', await txt(p, '#status'))
-    ok('me@test.io' in await txt(p, 'main'), 'почта не показана')
+    ok('Из аккаунта' in await txt(p, 'main'), 'цикл из аккаунта не показан')
 
 @case('F16-N1', 'Неверный пароль')
 async def _(t):
     t.be.add_user('me@test.io', 'secret1')
     p = await t.device(); await signin(p, 'me@test.io', 'wrong12')
     ok('Проверьте раскладку' in await txt(p, '.formmsg'), await txt(p, '.formmsg'))
+    ok(await p.locator('.tab').count() == 0, 'приложение открылось с неверным паролем')
 
 @case('F16-N2', 'Регистрация на занятую почту')
 async def _(t):
     t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(); await act(p, 'tab:account'); await act(p, 'auth:up')
+    p = await t.device(); await act(p, 'auth:up')
     await p.fill('#au-email', 'me@test.io'); await p.fill('#au-pass', 'other12'); await p.click('form[data-form=signup] button[type=submit]'); await p.wait_for_timeout(300)
     ok('уже есть' in await txt(p, '.formmsg'), await txt(p, '.formmsg'))
     ok(t.be.users['me@test.io']['password'] == 'secret1', 'пароль изменился')
@@ -662,7 +682,7 @@ async def _(t):
 @case('F16-H3', 'Восстановление пароля')
 async def _(t):
     t.be.add_user('me@test.io', 'oldpass')
-    p = await t.device(); await act(p, 'tab:account'); await act(p, 'auth:forgot')
+    p = await t.device(); await act(p, 'auth:forgot')
     await p.fill('#au-email', 'me@test.io'); await p.click('form[data-form=forgot] button[type=submit]'); await p.wait_for_timeout(300)
     ok(t.be.last_reset['email'] == 'me@test.io' and t.be.last_reset['redirectTo'].endswith('/index.html'), str(t.be.last_reset))
     p2 = await t.device(hash='#recovery=me%40test.io'); await p2.wait_for_timeout(400)
@@ -675,123 +695,128 @@ async def _(t):
 
 @case('F16-E1', 'Подсказка про русскую раскладку')
 async def _(t):
-    p = await t.device(); await act(p, 'tab:account'); await p.fill('#au-pass', 'secret')
+    p = await t.device(); await p.fill('#au-pass', 'secret')
     ok(not await p.is_visible('#au-layout'), 'подсказка видна без причины')
     await p.fill('#au-pass', 'ыусксуе'); ok(await p.is_visible('#au-layout'), 'нет подсказки')
 
 @case('F16-E2', 'Показать/скрыть пароль')
 async def _(t):
-    p = await t.device(); await act(p, 'tab:account'); await p.fill('#au-pass', 'abc')
+    p = await t.device(); await p.fill('#au-pass', 'abc')
     await act(p, 'auth:eye'); ok(await p.get_attribute('#au-pass', 'type') == 'text', 'не показан')
     ok(await p.input_value('#au-pass') == 'abc', 'введённый пароль стёрся')
     await act(p, 'auth:eye'); ok(await p.get_attribute('#au-pass', 'type') == 'password', 'не скрыт')
 
-@case('F16-H4', 'Выход')
+@case('F16-H4', 'Выход: данные отправлены и удалены с устройства')
 async def _(t):
-    t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await act(p, 'auth:out', 300)
-    ok(await txt(p, '#status') == 'Войти для синхронизации', await txt(p, '#status'))
-    ok(len((await stored(p))['goals']) == 1, 'данные пропали после выхода')
+    p = await t.device(mk_state(goals=[goal()])); uid = t.be.users['me@test.io']['id']
+    await pip(p, 0)                                   # изменение ещё не отправлено
+    await act(p, 'tab:account'); await act(p, 'auth:out', 900)
+    ok(await p.locator('.gate').count() == 1, 'не вернулся экран входа')
+    ok(not any(k.startswith(LS) for k in await keys(p)), f'данные остались: {await keys(p)}')
+    ok('sb-mock-session' not in await keys(p), 'сессия осталась')
+    ok(t.be.rows[uid]['state']['weeks']['3']['done']['tQ1w2e3'] == 1, 'последнее изменение не отправлено перед выходом')
+    await p.reload(); await p.wait_for_timeout(300)
+    ok(await p.locator('.gate').count() == 1 and 'Цель тест' not in await txt(p, 'body'), 'после перезагрузки видны данные')
+
+@case('F16-H5', 'Выход без связи предупреждает')
+async def _(t):
+    p = await t.device(mk_state(goals=[goal()])); uid = t.be.users['me@test.io']['id']
+    t.be.offline = True; await pip(p, 0); await p.wait_for_timeout(1200)
+    await act(p, 'tab:account'); await act(p, 'auth:out', 500)
+    ok('не отправлены' in await txt(p, '.formmsg') and await p.locator('.gate').count() == 0, 'вышел без предупреждения')
+    ok(await p.get_by_role('button', name='Выйти без отправки').count() == 1, 'нет кнопки подтверждения')
+    await act(p, 'auth:out', 500)
+    ok(await p.locator('.gate').count() == 1 and not any(k.startswith(LS) for k in await keys(p)), 'не вышел после подтверждения')
 
 @case('F16-E3', 'Сессия переживает перезагрузку')
 async def _(t):
     t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await p.reload(); await p.wait_for_timeout(600)
+    p = await t.device(); await signin(p, 'me@test.io', 'secret1'); await p.reload(); await p.wait_for_timeout(600)
     ok(await txt(p, '#status') == 'Синхронизировано', await txt(p, '#status'))
+
+@case('F16-E4', 'Работа без сети после входа')
+async def _(t):
+    p = await t.device(mk_state(goals=[goal(title='Офлайн цель')])); t.be.offline = True
+    await p.reload(); await p.wait_for_timeout(500)
+    ok('Офлайн цель' in await txt(p, 'main'), 'без сети цикл не открылся')
 
 # ---------- F17
 @case('F17-H1', 'Изменение уходит в облако')
 async def _(t):
-    u = t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(600)
-    await act(p, 'tab:week'); await pip(p, 0); await p.wait_for_timeout(1300)
-    ok(t.be.rows[u['id']]['state']['weeks']['3']['done']['tQ1w2e3'] == 1, 'отметка не в облаке')
+    p = await t.device(mk_state(goals=[goal()])); uid = t.be.users['me@test.io']['id']
+    await pip(p, 0); await p.wait_for_timeout(1300)
+    ok(t.be.rows[uid]['state']['weeks']['3']['done']['tQ1w2e3'] == 1, 'отметка не в облаке')
 
 @case('F17-H2', 'Второе устройство подтягивает цикл')
 async def _(t):
     u = t.be.add_user('me@test.io', 'secret1')
-    st = mk_state(goals=[goal(title='Облачная цель')], updatedAt=5000); t.be.rows[u['id']] = {'state': st, 'updated_at': 'x'}
-    p = await t.device(); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(600); await act(p, 'tab:week')
+    t.be.rows[u['id']] = {'state': mk_state(goals=[goal(title='Облачная цель')], updatedAt=5000), 'updated_at': 'x'}
+    p = await t.device(); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(600)
     ok('Облачная цель' in await txt(p, 'main'), 'цикл не подтянулся')
 
 @case('F17-H3', 'Возврат на вкладку подтягивает изменения')
 async def _(t):
-    u = t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(800); await act(p, 'tab:week')
-    st = json.loads(json.dumps(t.be.rows[u['id']]['state'])); st['goals'][0]['title'] = 'Изменено на телефоне'; st['updatedAt'] = st['updatedAt'] + 10_000
-    t.be.rows[u['id']]['state'] = st
+    p = await t.device(mk_state(goals=[goal()])); uid = t.be.users['me@test.io']['id']; await p.wait_for_timeout(400)
+    st = json.loads(json.dumps(t.be.rows[uid]['state'])); st['goals'][0]['title'] = 'Изменено на телефоне'; st['updatedAt'] = st['updatedAt'] + 10_000
+    t.be.rows[uid]['state'] = st
     await p.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await p.wait_for_timeout(500)
     ok('Изменено на телефоне' in await txt(p, 'main'), 'изменение не подтянулось')
 
 @case('F17-E1', 'Без сети: сохраняется и досылается')
 async def _(t):
-    u = t.be.add_user('me@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal()])); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(800); await act(p, 'tab:week')
+    p = await t.device(mk_state(goals=[goal()])); uid = t.be.users['me@test.io']['id']; await p.wait_for_timeout(400)
     t.be.offline = True; await pip(p, 0); await p.wait_for_timeout(1300)
     ok('Нет связи' in await txt(p, '#status'), await txt(p, '#status'))
     t.be.offline = False; await p.evaluate("window.dispatchEvent(new Event('online'))"); await p.wait_for_timeout(900)
-    ok(t.be.rows[u['id']]['state']['weeks'].get('3', {}).get('done', {}).get('tQ1w2e3') == 1, 'не дослалось')
+    ok(t.be.rows[uid]['state']['weeks'].get('3', {}).get('done', {}).get('tQ1w2e3') == 1, 'не дослалось')
     ok(await txt(p, '#status') == 'Синхронизировано', await txt(p, '#status'))
 
-@case('F17-N1', 'Новое устройство не затирает облако')
+@case('F17-N2', 'После выхода из A вход в B показывает только цикл B')
 async def _(t):
-    u = t.be.add_user('me@test.io', 'secret1')
-    cloud = mk_state(goals=[goal(title='Важная цель')], weeks={'1': week({'tQ1w2e3': 4})}, updatedAt=1000)
-    t.be.rows[u['id']] = {'state': cloud, 'updated_at': 'x'}
-    p = await t.device(); await act(p, 'tab:account'); await act(p, 'skin:calm', 200)   # что-то поменяли до входа
-    await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(1300)
-    row = t.be.rows[u['id']]['state']
-    ok(row['goals'] and row['goals'][0]['title'] == 'Важная цель', 'облачный цикл затёрт пустым')
-    await act(p, 'tab:week'); ok('Важная цель' in await txt(p, 'main'), 'облачный цикл не показан')
-
-@case('F17-N2', 'Данные аккаунта A не попадают в аккаунт B')
-async def _(t):
-    a = t.be.add_user('a@test.io', 'secret1'); b = t.be.add_user('b@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal(title='Личная цель A')]))
-    await signin(p, 'a@test.io', 'secret1'); await p.wait_for_timeout(900); await act(p, 'auth:out', 300)
+    t.be.add_user('a@test.io', 'secret1'); b = t.be.add_user('b@test.io', 'secret1')
+    p = await t.device(mk_state(goals=[goal(title='Личная цель A')]), email='a@test.io')
+    await act(p, 'tab:account'); await act(p, 'auth:out', 900)
     await signin(p, 'b@test.io', 'secret1'); await p.wait_for_timeout(1300)
+    ok('Личная цель A' not in await txt(p, 'body'), 'цели A видны в аккаунте B')
     rb = t.be.rows.get(b['id'])
     ok(not rb or not any('Личная цель A' in g['title'] for g in rb['state']['goals']), 'данные A ушли в аккаунт B')
 
-@case('F17-N2b', 'Вход в другой аккаунт предлагает выбор, «С чистого листа»')
-async def _(t):
-    a = t.be.add_user('a@test.io', 'secret1'); b = t.be.add_user('b@test.io', 'secret1')
-    p = await t.device(mk_state(goals=[goal(title='Личная цель A')]))
-    await signin(p, 'a@test.io', 'secret1'); await p.wait_for_timeout(900); await act(p, 'auth:out', 300)
-    await signin(p, 'b@test.io', 'secret1'); await p.wait_for_timeout(600)
-    ok(await p.locator('[data-act="sync:fresh"]').count() == 1, 'нет выбора для чужого цикла')
-    ok('Выберите' in await txt(p, '#status'), await txt(p, '#status'))
-    await act(p, 'sync:fresh', 1200)
-    ok(t.be.rows[b['id']]['state']['goals'] == [], 'в аккаунт B ушли чужие цели')
-    ok(t.be.rows[a['id']]['state']['goals'][0]['title'] == 'Личная цель A', 'аккаунт A пострадал')
-
-@case('F17-N3', 'Разные циклы: «Оставить из аккаунта»')
+@case('F17-N3', 'Данные со старой версии и другой цикл в аккаунте: «Оставить из аккаунта»')
 async def _(t):
     u = t.be.add_user('me@test.io', 'secret1')
     t.be.rows[u['id']] = {'state': mk_state(goals=[goal(title='Облако')], updatedAt=10), 'updated_at': 'x'}
-    p = await t.device(mk_state(goals=[goal(title='Устройство')], updatedAt=99999))
+    p = await t.device(legacy=mk_state(goals=[goal(title='Устройство')], updatedAt=99999))
     await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(600)
     ok(t.be.rows[u['id']]['state']['goals'][0]['title'] == 'Облако', 'облако перезаписано без спроса')
-    ok('«Облако»' in await txt(p, 'main') and '«Устройство»' not in await txt(p, 'main') or True, '')
+    ok(await p.locator('[data-act="sync:cloud"]').count() == 1, 'нет выбора')
     await act(p, 'sync:cloud', 300); await act(p, 'tab:week')
     ok('Облако' in await txt(p, 'main'), 'не показан облачный цикл')
+    ok(LS not in await keys(p), 'старые данные не убраны')
     await pip(p, 0); await p.wait_for_timeout(1200)
     ok(t.be.rows[u['id']]['state']['weeks']['3']['done']['tQ1w2e3'] == 1, 'после выбора синхронизация не идёт')
 
-@case('F17-N4', 'Разные циклы: «Оставить с этого устройства»')
+@case('F17-N4', 'Данные со старой версии: «Оставить с этого устройства»')
 async def _(t):
     u = t.be.add_user('me@test.io', 'secret1')
     t.be.rows[u['id']] = {'state': mk_state(goals=[goal(title='Облако')], updatedAt=10), 'updated_at': 'x'}
-    p = await t.device(mk_state(goals=[goal(title='Устройство')]))
+    p = await t.device(legacy=mk_state(goals=[goal(title='Устройство')]))
     await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(600)
     await act(p, 'sync:local', 1300)
     ok(t.be.rows[u['id']]['state']['goals'][0]['title'] == 'Устройство', 'облако не заменено')
+
+@case('F17-N5', 'Данные со старой версии переносятся в пустой аккаунт')
+async def _(t):
+    u = t.be.add_user('me@test.io', 'secret1')
+    p = await t.device(legacy=mk_state(goals=[goal(title='Старый цикл')]))
+    await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(1300)
+    ok(t.be.rows[u['id']]['state']['goals'][0]['title'] == 'Старый цикл', 'не перенесено в аккаунт')
+    ok(LS not in await keys(p), 'старая копия не убрана')
 
 @case('F17-E2', 'Одинаковые данные: без лишнего вопроса')
 async def _(t):
     u = t.be.add_user('me@test.io', 'secret1')
     st = mk_state(goals=[goal()]); t.be.rows[u['id']] = {'state': dict(st, updatedAt=5), 'updated_at': 'x'}
-    p = await t.device(st); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(800)
+    p = await t.device(legacy=st); await signin(p, 'me@test.io', 'secret1'); await p.wait_for_timeout(800)
     ok(await p.locator('[data-act="sync:cloud"]').count() == 0, 'лишний вопрос о выборе')
     ok(await txt(p, '#status') == 'Синхронизировано', await txt(p, '#status'))
 
