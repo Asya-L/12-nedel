@@ -1,0 +1,16 @@
+{
+  "name": "12 недель",
+  "short_name": "12 недель",
+  "description": "Трекер системы «12 недель в году»: цели, тактики, оценка исполнения и прокачка.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F3F8",
+  "theme_color": "#3140D4",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Трекер системы «12 недель в году»: цели, тактики, оценка исполнения и прокачка.">
+<meta name="theme-color" content="#F2F3F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1020" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="12 недель">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Прокачка 12 недель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column (max 880px) — header with level chip, sticky tabs, a 13-cell week strip as the map of the cycle, then cards per section. */
+:root{
+  --bg:#F2F3F8; --surface:#FFFFFF; --surface-2:#E9EBF3; --ink:#141729; --muted:#5D6278; --line:#D8DBE6;
+  --accent:#3140D4; --accent-soft:#E2E5FF; --on-accent:#FFFFFF;
+  --xp:#B97C05; --xp-soft:#FBEFD0; --on-xp:#FFFFFF;
+  --good:#1D8655; --good-soft:#DBF2E5; --low:#C2410C; --low-soft:#FCE6D9;
+  --font-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --font-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1020; --surface:#161A2D; --surface-2:#1F2439; --ink:#E7E9F4; --muted:#9AA0B9; --line:#2B3149;
+  --accent:#8E98FF; --accent-soft:#252B57; --on-accent:#0D1020;
+  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405;
+  --good:#4FCB8C; --good-soft:#143425; --low:#FB8B5C; --low-soft:#3B2115;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1020; --surface:#161A2D; --surface-2:#1F2439; --ink:#E7E9F4; --muted:#9AA0B9; --line:#2B3149;
+  --accent:#8E98FF; --accent-soft:#252B57; --on-accent:#0D1020;
+  --xp:#F0B43C; --xp-soft:#3A2E12; --on-xp:#1A1405;
+  --good:#4FCB8C; --good-soft:#143425; --low:#FB8B5C; --low-soft:#3B2115;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
+.wrap{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:20px 80px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-.01em}
+.brand-name span{color:var(--accent)}
+.brand-sub{color:var(--muted);font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{font-family:var(--font-mono);font-size:11px;letter-spacing:.02em;color:var(--muted)}
+.status{appearance:none;border:0;background:none;padding:0;cursor:pointer;color:var(--muted)}
+.status:hover{color:var(--ink)}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.authform{display:flex;flex-direction:column;gap:12px;max-width:420px}
+.in.code{font-family:var(--font-mono);font-size:20px;letter-spacing:.2em}
+.formmsg{font-size:14px;color:var(--low)}
+.btn[disabled]{opacity:.6;cursor:default}
+.status::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:middle}
+.status.busy::before{background:var(--xp)}
+.status.local::before{background:var(--muted)}
+.lvlchip{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 5px;cursor:pointer;text-align:left}
+.lvl-badge{width:34px;height:34px;border-radius:50%;background:var(--xp);color:var(--on-xp);display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:13px;flex:none}
+.lvl-text{display:flex;flex-direction:column;gap:3px;min-width:110px}
+.lvl-title{font-weight:600;font-size:13px;line-height:1.1}
+.bar{height:5px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--xp);border-radius:5px;transition:width .4s}
+
+/* tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;padding-block:10px;margin-top:14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{appearance:none;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:14px;padding:8px 14px;border-radius:10px;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+main{display:flex;flex-direction:column;gap:18px;margin-top:18px}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sec{font-family:var(--font-display);font-weight:500;font-size:15px;letter-spacing:.01em}
+.sec-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.hint{color:var(--muted);font-size:13px}
+.eyebrow{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ok{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--low)}
+.btn.armed{background:var(--low);border-color:var(--low);color:var(--on-accent)}
+.btn.small{padding:6px 10px;font-size:13px}
+.linkbtn{appearance:none;border:0;background:none;color:var(--accent);font-weight:600;cursor:pointer;padding:0}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.pill.xp{background:var(--xp-soft);color:var(--xp)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+
+.in{width:100%;background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:9px 12px;font:inherit;color:var(--ink);min-width:0}
+.in:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+textarea.in{resize:vertical;min-height:62px;line-height:1.45}
+select.in{padding-right:28px;cursor:pointer}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:620px){.grid2{grid-template-columns:1fr}}
+
+/* banner */
+.banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:16px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.banner p{max-width:46ch}
+.banner-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* week strip */
+.strip{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:5px}
+.cell{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;min-width:0}
+.cell b{font-family:var(--font-display);font-weight:500;font-size:13px;line-height:1}
+.cell .pct{font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.2}
+.cell.good{background:var(--good-soft);border-color:var(--good)}
+.cell.good .pct{color:var(--good)}
+.cell.mid{background:var(--xp-soft);border-color:var(--xp)}
+.cell.mid .pct{color:var(--xp)}
+.cell.low{background:var(--low-soft);border-color:var(--low)}
+.cell.low .pct{color:var(--low)}
+.cell.future{background:transparent}
+.cell.w13{border-style:dashed;background:transparent}
+.cell.sel{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+.cell.now::after{content:"";position:absolute;top:-4px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+@media (max-width:560px){.cell .pct{display:none}.cell{padding:9px 0}.strip{gap:3px}}
+.strip-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.strip-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:center}
+@media (max-width:560px){.hero{grid-template-columns:1fr;justify-items:start;gap:14px}}
+.ring-wrap{position:relative;width:148px;height:148px}
+.ring{width:148px;height:148px;display:block}
+.ring-bg{fill:none;stroke:var(--surface-2);stroke-width:12}
+.ring-fg{fill:none;stroke:var(--accent);stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring.good .ring-fg{stroke:var(--good)} .ring.mid .ring-fg{stroke:var(--xp)} .ring.low .ring-fg{stroke:var(--low)}
+.ring-tick{stroke:var(--ink);stroke-width:2}
+.ring-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-num .big{font-family:var(--font-display);font-weight:700;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
+.ring-num .big small{font-size:16px;font-weight:500;margin-left:1px}
+.ring-num .cap{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.06em}
+.hero-info{display:flex;flex-direction:column;gap:8px;min-width:0}
+.h-week{font-family:var(--font-display);font-weight:700;font-size:30px;letter-spacing:-.02em;line-height:1.1}
+.h-week span{color:var(--muted);font-weight:500;font-size:18px}
+.hero-line{max-width:52ch}
+.hero-meta{display:flex;gap:8px;flex-wrap:wrap}
+.notice{font-size:13px;padding:8px 12px;border-radius:10px;background:var(--surface-2);color:var(--muted)}
+
+/* goals in week */
+.goalblock{gap:6px}
+.gb-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.gnum{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.gb-head h3{font-size:17px;font-weight:600;flex:1;min-width:0}
+.gb-count{font-family:var(--font-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tactic{display:flex;align-items:center;gap:10px 14px;padding-block:11px;border-top:1px solid var(--line);flex-wrap:wrap}
+.tactic:first-of-type{border-top:0}
+.t-title{flex:1 1 220px;min-width:0;display:flex;flex-direction:column}
+.t-title small{color:var(--muted);font-size:12px}
+.tactic.done .t-title span{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--good)}
+.pips{display:flex;gap:6px;flex-wrap:wrap}
+.pip{appearance:none;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:transparent;cursor:pointer;display:grid;place-items:center;transition:background .15s,border-color .15s,transform .15s}
+.pip:hover{border-color:var(--accent)}
+.pip.on{background:var(--accent);border-color:var(--accent)}
+.pip.on::after{content:"";width:9px;height:5px;border-left:2px solid var(--on-accent);border-bottom:2px solid var(--on-accent);transform:rotate(-45deg) translate(1px,-1px)}
+.tactic.done .pip.on{background:var(--good);border-color:var(--good)}
+.pip:active{transform:scale(.9)}
+
+/* blocks */
+.blk{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.blk:first-of-type{border-top:0}
+.blk > div:first-child{display:flex;flex-direction:column;min-width:0;flex:1 1 220px}
+.blk small{color:var(--muted);font-size:12px}
+.toggle{appearance:none;width:48px;height:28px;border-radius:999px;border:0;background:var(--surface-2);position:relative;cursor:pointer;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+.toggle[aria-pressed="true"]{background:var(--good)}
+.toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+.stepper{display:flex;align-items:center;gap:4px;flex:none}
+.stepper button{appearance:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700}
+.stepper span{min-width:36px;text-align:center;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* review */
+.lags{display:flex;flex-direction:column;gap:8px}
+.lag{display:grid;grid-template-columns:minmax(0,1fr) 100px auto;gap:10px;align-items:center;font-size:14px}
+.lag em{font-style:normal;color:var(--muted);font-family:var(--font-mono);font-size:12px;white-space:nowrap}
+@media (max-width:420px){.lag{grid-template-columns:minmax(0,1fr) 80px}.lag em{grid-column:2}}
+
+/* plan */
+.goalcard .g-top{display:flex;gap:10px;align-items:center}
+.goalcard .g-top .in{font-size:17px;font-weight:600}
+.measure{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:8px}
+@media (max-width:520px){.measure{grid-template-columns:1fr 1fr}.measure label:first-child{grid-column:1 / -1}}
+.tacrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-block:8px;border-top:1px solid var(--line)}
+.tacrow .in.ttl{flex:1 1 240px}
+.tacrow .ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tacrow select.in{width:auto;padding:8px 26px 8px 10px;font-size:13px}
+.tacrow .dash{color:var(--muted);font-size:13px}
+.iconbtn{appearance:none;border:1px solid transparent;background:none;color:var(--muted);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;flex:none}
+.iconbtn:hover{color:var(--low);border-color:var(--line)}
+.iconbtn.armed{background:var(--low);color:var(--on-accent);font-size:12px;width:auto;padding:0 8px}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;counter-reset:s}
+.steps div{background:var(--surface-2);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.steps b{font-family:var(--font-display);font-weight:500;font-size:13px}
+@media (max-width:620px){.steps{grid-template-columns:1fr}}
+.warn{font-size:13px;color:var(--xp)}
+
+/* review/stats */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.stat b{font-family:var(--font-display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--font-mono);font-size:11px}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .tl{stroke:var(--good);stroke-width:1.5;stroke-dasharray:5 4}
+.chart .tlt{fill:var(--good)}
+.chart .b-good{fill:var(--good)} .chart .b-mid{fill:var(--xp)} .chart .b-low{fill:var(--low)}
+.chart .b-empty{fill:none;stroke:var(--line);stroke-dasharray:3 3}
+.chart .now{fill:var(--accent);font-weight:700}
+.chart .val{fill:var(--ink)}
+.gprog{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:6px 16px;align-items:center;padding-block:10px;border-top:1px solid var(--line)}
+.gprog:first-of-type{border-top:0}
+.gprog .bar{height:8px;grid-column:1}
+.gprog .bar i{background:var(--accent)}
+.gprog .nums{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.spark{grid-row:1 / span 3;grid-column:2;width:120px;height:40px}
+.spark path{fill:none;stroke:var(--accent);stroke-width:2}
+.spark circle{fill:var(--accent)}
+details.rv{border-top:1px solid var(--line);padding-block:10px}
+details.rv:first-of-type{border-top:0}
+details.rv summary{cursor:pointer;font-weight:600;display:flex;gap:10px;align-items:center}
+details.rv dl{margin:10px 0 0;display:grid;grid-template-columns:minmax(0,160px) minmax(0,1fr);gap:6px 14px;font-size:14px}
+details.rv dt{color:var(--muted)}
+details.rv dd{margin:0;white-space:pre-wrap}
+@media (max-width:520px){details.rv dl{grid-template-columns:1fr}details.rv dd{margin-bottom:6px}}
+
+/* level */
+.levelcard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center}
+@media (max-width:520px){.levelcard{grid-template-columns:1fr}}
+.biglvl{width:116px;height:116px;border-radius:28px;background:var(--xp);color:var(--on-xp);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.biglvl b{font-family:var(--font-display);font-weight:700;font-size:48px;line-height:1}
+.biglvl span{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.levelcard h2{font-family:var(--font-display);font-weight:700;font-size:24px}
+.levelcard .bar{height:10px;margin-top:10px}
+.xptable{width:100%;border-collapse:collapse;font-size:14px}
+.xptable td{padding:8px 0;border-top:1px solid var(--line)}
+.xptable tr:first-child td{border-top:0}
+.xptable td:last-child{text-align:right;font-family:var(--font-mono);color:var(--xp);white-space:nowrap;padding-left:12px}
+.achs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.ach{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:flex-start}
+.ach .medal{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--xp-soft);border:2px solid var(--xp);color:var(--xp);font-family:var(--font-display);font-size:12px;font-weight:700}
+.ach.locked{opacity:.55}
+.ach.locked .medal{background:var(--surface-2);border-color:var(--line);color:var(--muted)}
+.ach b{display:block;font-size:14px}
+.ach small{color:var(--muted);font-size:12px;line-height:1.35;display:block}
+.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;counter-reset:r}
+.rules li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;font-size:14px;counter-increment:r}
+.rules li::before{content:counter(r);font-family:var(--font-display);font-weight:500;font-size:13px;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.rules b{display:block}
+
+.empty{text-align:center;padding:28px 18px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty p{max-width:40ch;color:var(--muted)}
+
+/* toasts */
+#toasts{position:fixed;left:0;right:0;bottom:0;padding:0 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;z-index:20}
+.toast{background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.18);animation:tin .25s ease}
+.toast.xp{background:var(--xp);color:var(--on-xp);font-family:var(--font-display);font-weight:500}
+.toast.lvl{background:var(--accent);color:var(--on-accent)}
+.toast.out{opacity:0;transform:translateY(8px);transition:all .3s}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <nav class="tabs" role="tablist" aria-label="Разделы" id="tabs"></nav>
+  <main id="main"></main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+'use strict';
+const LS_KEY='tw12-state-v1';
+const CLIENT=Math.random().toString(36).slice(2,10);
+const MONTHS=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const TITLES=['Новичок','Ученик','Планировщик','Исполнитель','Тактик','Стратег','Хозяин недели','Мастер ритма','Мастер цикла','Архитектор года','Легенда 12 недель'];
+const TABS=[['week','Неделя'],['plan','План'],['results','Итоги'],['level','Прокачка']];
+
+/* ---------- dates ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const toISO=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fromISO=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=fromISO(s);d.setDate(d.getDate()+n);return toISO(d)};
+const mondayISO=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return toISO(x)};
+const todayISO=()=>toISO(new Date());
+const dayDiff=(a,b)=>{const A=fromISO(a),B=fromISO(b);return Math.round((Date.UTC(B.getFullYear(),B.getMonth(),B.getDate())-Date.UTC(A.getFullYear(),A.getMonth(),A.getDate()))/864e5)};
+const fmtDate=s=>{const d=fromISO(s);return d.getDate()+' '+MONTHS[d.getMonth()]};
+function fmtRange(w){const a=addDays(S.cycle.start,(w-1)*7),b=addDays(a,6);const A=fromISO(a),B=fromISO(b);
+  return A.getMonth()===B.getMonth()?`${A.getDate()}–${B.getDate()} ${MONTHS[B.getMonth()]}`:`${A.getDate()} ${MONTHS[A.getMonth()]} – ${B.getDate()} ${MONTHS[B.getMonth()]}`}
+
+/* ---------- utils ---------- */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
+const fmtNum=n=>n==null?'—':(Math.round(n*10)/10).toString().replace('.',',');
+function plural(n,one,few,many){const a=Math.abs(n)%100,b=a%10;if(a>10&&a<20)return many;if(b>1&&b<5)return few;if(b===1)return one;return many}
+
+/* ---------- state ---------- */
+function blankState(){return{v:1,isExample:false,rev:0,updatedAt:0,cycle:{title:'Мой первый цикл',start:mondayISO(new Date())},vision:{long:'',three:''},goals:[],weeks:{},xpBank:0,history:[],ach:{}}}
+function exampleState(){
+  const start=addDays(mondayISO(new Date()),-14);
+  return{v:1,isExample:true,rev:0,updatedAt:0,
+    cycle:{title:'Осенний цикл (пример)',start},
+    vision:{long:'Заниматься проектами, которые мне интересны, находить время на спорт и спокойные вечера без авралов.',
+            three:'Через три года: закончена и опубликована книга, пробежан полумарафон, есть сайт-портфолио и стабильные заказы.'},
+    goals:[
+      {id:'g1',title:'Написать 40 страниц черновика',why:'Закончить черновик книги до конца года',measure:{name:'Страниц написано',target:40,unit:'стр.'},
+        tactics:[{id:'t1',title:'Утренний блок письма, 90 минут',per:5,from:1,to:12},{id:'t2',title:'Перечитать и отредактировать написанное за неделю',per:1,from:1,to:12},{id:'t3',title:'Отдать главу на чтение и собрать замечания',per:1,from:4,to:12}]},
+      {id:'g2',title:'Пробежать 10 км без остановки',why:'Первый шаг к полумарафону',measure:{name:'Самая длинная пробежка',target:10,unit:'км'},
+        tactics:[{id:'t4',title:'Пробежка по плану тренировок',per:3,from:1,to:12},{id:'t5',title:'Растяжка 15 минут',per:2,from:1,to:12}]},
+      {id:'g3',title:'Запустить сайт-портфолио',why:'Чтобы заказчики находили меня сами',measure:{name:'Готовых разделов',target:5,unit:'шт.'},
+        tactics:[{id:'t6',title:'Собрать один раздел сайта',per:1,from:1,to:10},{id:'t7',title:'Показать сайт двум людям и записать отзывы',per:1,from:8,to:12}]}
+    ],
+    weeks:{
+      1:{done:{t1:5,t2:1,t4:3,t5:1,t6:1},blocks:{strategic:true,buffer:4,breakout:true},reviewed:true,lag:{g1:6,g2:4,g3:1},
+         review:{good:'Утренние блоки письма работают, если телефон лежит в другой комнате.',bad:'Растяжка выпала один раз: её откладывали на вечер.',next:'Делать растяжку сразу после пробежки.'}},
+      2:{done:{t1:4,t2:1,t4:2,t5:1,t6:1},blocks:{strategic:true,buffer:2,breakout:false},reviewed:true,lag:{g1:10,g2:5,g3:2},
+         review:{good:'Раздел «Обо мне» готов и уже выложен.',bad:'Пробежка сорвалась из-за дождя, замены не нашлось.',next:'Подобрать маршрут под навесом или зал на случай плохой погоды.'}},
+      3:{done:{t1:2,t4:1,t5:1},blocks:{strategic:false,buffer:1,breakout:false},reviewed:false,lag:{},review:{good:'',bad:'',next:''}}
+    },
+    xpBank:0,history:[],ach:{}};
+}
+function emptyWeek(){return{done:{},blocks:{strategic:false,buffer:0,breakout:false},review:{good:'',bad:'',next:''},lag:{},reviewed:false}}
+const EMPTY=Object.freeze(emptyWeek());
+function migrate(s){
+  const b=blankState();
+  s=Object.assign(b,s||{});
+  s.cycle=Object.assign(blankState().cycle,s.cycle||{});
+  s.vision=Object.assign({long:'',three:''},s.vision||{});
+  s.goals=(s.goals||[]).map(g=>({id:g.id||uid(),title:g.title||'',why:g.why||'',measure:Object.assign({name:'',target:null,unit:''},g.measure||{}),
+    tactics:(g.tactics||[]).map(t=>({id:t.id||uid(),title:t.title||'',per:clamp(+t.per||1,1,7),from:clamp(+t.from||1,1,12),to:clamp(+t.to||12,1,12)}))}));
+  const w={};for(const k in (s.weeks||{})){const x=s.weeks[k]||{};w[k]=Object.assign(emptyWeek(),x,{blocks:Object.assign(emptyWeek().blocks,x.blocks||{}),review:Object.assign(emptyWeek().review,x.review||{}),done:Object.assign({},x.done||{}),lag:Object.assign({},x.lag||{})})}
+  s.weeks=w;s.history=s.history||[];s.ach=s.ach||{};s.xpBank=+s.xpBank||0;
+  return s;
+}
+let S;
+let hadLocal=false;
+try{const raw=localStorage.getItem(LS_KEY);if(raw){S=migrate(JSON.parse(raw));hadLocal=true}}catch(e){}
+if(!S)S=exampleState();
+
+const ui={tab:'week',week:1,armed:null,lastXP:0};
+
+/* ---------- derived ---------- */
+const rawWeek=()=>Math.floor(dayDiff(S.cycle.start,todayISO())/7)+1;
+const curWeek=()=>clamp(rawWeek(),1,13);
+const wkR=w=>S.weeks[w]||EMPTY;
+function wk(w){if(!S.weeks[w])S.weeks[w]=emptyWeek();return S.weeks[w]}
+const goal=id=>S.goals.find(g=>g.id===id);
+function activeTactics(w){const out=[];S.goals.forEach((g,gi)=>g.tactics.forEach(t=>{if(w>=t.from&&w<=t.to)out.push({g,gi,t})}));return out}
+function weekCounts(w){let plan=0,done=0;const W=wkR(w);for(const {t} of activeTactics(w)){plan+=t.per;done+=Math.min(W.done[t.id]||0,t.per)}return{plan,done}}
+function score(w){const {plan,done}=weekCounts(w);return plan?Math.round(done/plan*100):null}
+const cls=sc=>sc==null?'':sc>=85?'good':sc>=65?'mid':'low';
+function weekXP(w){
+  if(w>12)return 0;const W=S.weeks[w];if(!W)return 0;
+  let xp=10*weekCounts(w).done;const sc=score(w);
+  if(sc!=null&&sc>=85)xp+=100; if(sc===100)xp+=50;
+  if(W.blocks.strategic)xp+=25; if(W.blocks.breakout)xp+=15; xp+=3*(W.blocks.buffer||0);
+  if(W.reviewed)xp+=30; return xp;
+}
+function cycleXP(){let x=0;for(let w=1;w<=12;w++)x+=weekXP(w);return x}
+const visionXP=()=>(S.vision.long.trim()||S.vision.three.trim())?20:0;
+const achXP=()=>50*Object.keys(S.ach).length;
+const totalXP=()=>S.xpBank+cycleXP()+visionXP()+achXP();
+function levelOf(xp){let n=1;while(xp>=50*n*(n+1))n++;const from=50*(n-1)*n,to=50*n*(n+1);return{n,from,to,title:TITLES[Math.min(n-1,TITLES.length-1)],pct:Math.round((xp-from)/(to-from)*100)}}
+function pastWeeks(){return Math.min(12,Math.max(0,rawWeek()))}
+function scoredWeeks(){const out=[];for(let w=1;w<=12;w++){const sc=score(w);if(sc!=null&&(w<=rawWeek()||S.weeks[w]))out.push({w,sc})}return out}
+function avgScore(){const l=scoredWeeks().filter(x=>x.w<=Math.max(1,pastWeeks()));if(!l.length)return null;return Math.round(l.reduce((a,b)=>a+b.sc,0)/l.length)}
+function maxStreak(){let m=0,r=0;for(let w=1;w<=12;w++){const sc=score(w);if(sc!=null&&sc>=85){r++;m=Math.max(m,r)}else r=0}return m}
+function countWeeks(f){let n=0;for(let w=1;w<=12;w++)if(S.weeks[w]&&f(S.weeks[w],w))n++;return n}
+
+const ACH=[
+  {id:'first',mark:'1',name:'Первый шаг',desc:'Отметить первое выполненное действие',test:()=>countWeeks((W,w)=>weekCounts(w).done>0)>0},
+  {id:'vision',mark:'В',name:'Взгляд вдаль',desc:'Записать видение на годы вперёд',test:()=>visionXP()>0},
+  {id:'plan',mark:'П',name:'План на бумаге',desc:'От одной до трёх целей, у каждой есть тактики',test:()=>S.goals.length>=1&&S.goals.length<=3&&S.goals.every(g=>g.tactics.length)},
+  {id:'c85',mark:'85',name:'Клуб 85%',desc:'Закрыть неделю на 85% и выше',test:()=>scoredWeeks().some(x=>x.sc>=85)},
+  {id:'perfect',mark:'100',name:'Идеальная неделя',desc:'Выполнить все тактики недели',test:()=>scoredWeeks().some(x=>x.sc===100)},
+  {id:'s3',mark:'×3',name:'Серия ×3',desc:'Три недели подряд на 85% и выше',test:()=>maxStreak()>=3},
+  {id:'s6',mark:'×6',name:'Серия ×6',desc:'Шесть недель подряд на 85% и выше',test:()=>maxStreak()>=6},
+  {id:'strat',mark:'С',name:'Стратег',desc:'Стратегический блок в четырёх неделях',test:()=>countWeeks(W=>W.blocks.strategic)>=4},
+  {id:'honest',mark:'О',name:'Честный отчёт',desc:'Провести четыре еженедельных обзора',test:()=>countWeeks(W=>W.reviewed)>=4},
+  {id:'full',mark:'12',name:'Все двенадцать',desc:'Отметить действия в каждой из 12 недель',test:()=>countWeeks((W,w)=>weekCounts(w).done>0)>=12},
+  {id:'round2',mark:'↻',name:'Второй круг',desc:'Завершить цикл и начать новый',test:()=>S.history.length>0},
+  {id:'lvl5',mark:'5',name:'Пятый уровень',desc:'Набрать 1000 XP',test:()=>S.xpBank+cycleXP()+visionXP()>=1000},
+];
+function checkUnlocks(silent){
+  for(const a of ACH){if(!S.ach[a.id]&&a.test()){S.ach[a.id]=todayISO();if(!silent)toast('Достижение: '+a.name+' · +50 XP','lvl')}}
+}
+function settle(){
+  const xp=totalXP(),L0=levelOf(ui.lastXP),L1=levelOf(xp);
+  if(xp>ui.lastXP)toast('+'+(xp-ui.lastXP)+' XP','xp');
+  if(L1.n>L0.n)toast('Новый уровень '+L1.n+' · '+L1.title,'lvl');
+  ui.lastXP=xp;
+}
+
+/* ---------- toasts ---------- */
+function toast(text,kind){
+  const box=document.getElementById('toasts');const el=document.createElement('div');
+  el.className='toast '+(kind||'');el.textContent=text;box.appendChild(el);
+  while(box.children.length>3)box.firstChild.remove();
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),320)},2200);
+}
+
+/* ---------- persistence & sync (Supabase) ---------- */
+const CFG=window.APP_CONFIG||{};
+const SYNC_READY=!!(CFG.supabaseUrl&&CFG.supabaseKey&&!/YOUR_|ВАШ/.test(CFG.supabaseUrl+CFG.supabaseKey)&&window.supabase);
+let sb=null,session=null,lastUid=null,saveTimer=null,saving=false,dirty=false,syncErr='';
+const auth={mode:'in',email:'',busy:false,msg:'',info:''};
+let pendingImport=null,installPrompt=null;
+function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
+function scheduleSave(){
+  S.rev=(S.rev||0)+1;S.updatedAt=Date.now();saveLocal();
+  if(session){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,800)}
+  setStatus();
+}
+async function flush(){
+  if(!session||!dirty){setStatus();return}
+  if(saving){clearTimeout(saveTimer);saveTimer=setTimeout(flush,500);return}
+  saving=true;dirty=false;setStatus();
+  try{
+    const {error}=await sb.from('cycles').upsert({user_id:session.user.id,state:JSON.parse(JSON.stringify(S)),updated_at:new Date(S.updatedAt||Date.now()).toISOString()});
+    if(error)throw error;syncErr='';
+  }catch(e){dirty=true;syncErr=(e&&e.message)||'нет связи';clearTimeout(saveTimer);saveTimer=setTimeout(flush,6000+Math.random()*4000)}
+  saving=false;setStatus();
+}
+function adopt(remote){S=remote;saveLocal();ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();render()}
+async function pull(initial){
+  if(!session)return;
+  try{
+    const {data,error}=await sb.from('cycles').select('state,updated_at').eq('user_id',session.user.id).maybeSingle();
+    if(error)throw error;
+    if(data&&data.state){
+      const remote=migrate(data.state);
+      if(initial){
+        if(!S.isExample&&(S.updatedAt||0)>(remote.updatedAt||0)){dirty=true;flush()}
+        else if((remote.updatedAt||0)!==(S.updatedAt||0))adopt(remote);
+      }else if((remote.updatedAt||0)>(S.updatedAt||0)&&!dirty&&!saving&&!isEditing())adopt(remote);
+    }else if(!S.isExample){dirty=true;flush()}
+    syncErr='';
+  }catch(e){syncErr=(e&&e.message)||'нет связи'}
+  setStatus();
+}
+function setStatus(){
+  const el=document.getElementById('status');if(!el)return;
+  let t,c='status';
+  if(!SYNC_READY){t='Только на этом устройстве';c+=' local'}
+  else if(!session){t='Войти для синхронизации';c+=' local'}
+  else if(syncErr){t='Нет связи · сохранено на устройстве';c+=' busy'}
+  else if(dirty||saving){t='Синхронизирую…';c+=' busy'}
+  else t='Синхронизировано';
+  el.className=c;el.textContent=t;
+}
+const isEditing=()=>{const a=document.activeElement;return a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)};
+async function initSync(){
+  if(!SYNC_READY){setStatus();return}
+  try{
+    sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    sb.auth.onAuthStateChange((ev,s)=>{
+      session=s;
+      if(s&&s.user.id!==lastUid){lastUid=s.user.id;setTimeout(()=>pull(true),0)}
+      if(!s){lastUid=null;dirty=false}
+      setStatus();if(ui.tab==='account')render();
+    });
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(dirty)flush();pull(false)}});
+    window.addEventListener('online',()=>{if(dirty)flush();pull(false)});
+  }catch(e){sb=null}
+  setStatus();
+}
+
+/* ---------- render: header & tabs ---------- */
+function renderHeader(){
+  const xp=totalXP(),L=levelOf(xp);
+  document.getElementById('top').innerHTML=`
+    <div class="brand"><div class="brand-name">12<span>/</span>недель</div>
+      <div class="brand-sub"><span>${esc(S.cycle.title||'Цикл')}</span><button id="status" class="status" data-act="tab:account"></button></div></div>
+    <button class="lvlchip" data-act="tab:level" aria-label="Уровень ${L.n}, ${xp} XP">
+      <span class="lvl-badge">${L.n}</span>
+      <span class="lvl-text"><span class="lvl-title">${esc(L.title)}</span><span class="bar"><i style="width:${L.pct}%"></i></span></span>
+    </button>`;
+  document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${ui.tab===k}" data-act="tab:${k}">${l}</button>`).join('');
+  setStatus();
+}
+function render(){
+  renderHeader();
+  const m=document.getElementById('main');
+  let h=S.isExample?`<div class="banner"><p><b>Это пример цикла.</b> Пощёлкайте по кружкам и неделям, чтобы посмотреть, как всё работает, затем начните свой.</p>
+    <div class="banner-actions"><button class="btn primary" data-act="ex:clear">Начать свой цикл</button><button class="btn ghost" data-act="ex:keep">Взять пример за основу</button></div></div>`:'';
+  h+=ui.tab==='week'?viewWeek():ui.tab==='plan'?viewPlan():ui.tab==='results'?viewResults():ui.tab==='account'?viewAccount():viewLevel();
+  m.innerHTML=h;
+}
+
+/* ---------- views ---------- */
+function strip(){
+  const rw=rawWeek();let h='<div class="strip">';
+  for(let i=1;i<=13;i++){
+    const sc=i<=12?score(i):null,future=i>rw&&!(S.weeks[i]&&weekCounts(i).done>0);
+    const c=i===13?'w13':(future?'future':cls(sc));
+    const now=i===curWeek()&&rw>=1&&rw<=13;
+    const label=i===13?'итоги':(sc!=null&&!future?sc+'%':'·');
+    h+=`<button class="cell ${c}${i===ui.week?' sel':''}${now?' now':''}" data-act="week:${i}" aria-label="Неделя ${i}${sc!=null&&!future?', '+sc+' процентов':''}${now?', текущая':''}"><b>${i}</b><span class="pct">${label}</span></button>`;
+  }
+  return h+'</div>';
+}
+function ring(sc){
+  const r=54,c=2*Math.PI*r,v=sc||0,off=c*(1-v/100);
+  const a=(0.85*360-90)*Math.PI/180,x1=66+46*Math.cos(a),y1=66+46*Math.sin(a),x2=66+62*Math.cos(a),y2=66+62*Math.sin(a);
+  return `<svg viewBox="0 0 132 132" class="ring ${cls(sc)}" aria-hidden="true"><circle cx="66" cy="66" r="${r}" class="ring-bg"/>${v>0?`<circle cx="66" cy="66" r="${r}" class="ring-fg" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 66 66)"/>`:''}<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="ring-tick"/></svg>`;
+}
+function viewWeek(){
+  const w=ui.week;let h=`<section class="card">${strip()}<div class="strip-legend"><span><i style="background:var(--good)"></i>85% и выше</span><span><i style="background:var(--xp)"></i>65–84%</span><span><i style="background:var(--low)"></i>ниже 65%</span><span><i style="background:var(--accent);border-radius:50%"></i>текущая неделя</span></div></section>`;
+  if(w===13)return h+viewWeek13();
+  const rw=rawWeek(),sc=score(w),{plan,done}=weekCounts(w);
+  let line;
+  if(!plan)line='На эту неделю тактик нет. Добавьте их во вкладке «План».';
+  else if(sc>=85)line=sc===100?'Все тактики недели выполнены. Это и есть идеальное исполнение.':'Цель 85% достигнута. Неделя засчитана как успешная.';
+  else{const need=Math.ceil(plan*0.85)-done;line=`Выполнено ${done} из ${plan}. До 85% ${need===1?'осталось одно действие':'осталось '+need+' '+plural(need,'действие','действия','действий')}.`}
+  h+=`<section class="hero"><div class="ring-wrap">${ring(sc)}<div class="ring-num"><span class="big">${sc==null?'—':sc}<small>${sc==null?'':'%'}</small></span><span class="cap">ИСПОЛНЕНИЕ</span></div></div>
+    <div class="hero-info"><div class="eyebrow">${w===curWeek()&&rw>=1&&rw<=12?'Текущая неделя · ':''}${fmtRange(w)}</div>
+      <h1 class="h-week">Неделя ${w} <span>из 12</span></h1><p class="hero-line">${line}</p>
+      <div class="hero-meta"><span class="pill xp">+${weekXP(w)} XP за неделю</span><span class="pill">цель ≥ 85%</span></div>
+      ${rw<1?`<p class="notice">Цикл стартует ${fmtDate(S.cycle.start)}. Пока можно спокойно посмотреть план недели.</p>`:''}
+      ${rw>13?`<p class="notice">Этот цикл закончился. Откройте неделю 13, чтобы подвести итоги и начать новый.</p>`:''}
+    </div></section>`;
+  const act=activeTactics(w);
+  if(!S.goals.length){
+    h+=`<section class="card empty"><h2 class="sec">Пока нет целей</h2><p>Система работает от целей к действиям: 1–3 цели на 12 недель и конкретные тактики с числом повторов в неделю.</p><button class="btn primary" data-act="tab:plan">Составить план</button></section>`;
+  }else{
+    const W=wkR(w);
+    S.goals.forEach((g,gi)=>{
+      const ts=act.filter(x=>x.g===g);if(!ts.length)return;
+      let p=0,d=0;ts.forEach(({t})=>{p+=t.per;d+=Math.min(W.done[t.id]||0,t.per)});
+      h+=`<section class="card goalblock"><div class="gb-head"><span class="gnum">Цель ${gi+1}</span><h3>${esc(g.title||'Без названия')}</h3><span class="gb-count">${d}/${p}</span></div>`;
+      ts.forEach(({t})=>{
+        const dn=Math.min(W.done[t.id]||0,t.per);let pips='';
+        for(let i=0;i<t.per;i++)pips+=`<button class="pip${i<dn?' on':''}" data-act="pip:${w}:${t.id}:${i}" aria-pressed="${i<dn}" aria-label="${esc(t.title)}: ${i+1} из ${t.per}"></button>`;
+        h+=`<div class="tactic${dn>=t.per?' done':''}"><div class="t-title"><span>${esc(t.title||'Тактика без названия')}</span><small>${t.per}× в неделю · недели ${t.from}–${t.to}</small></div><div class="pips">${pips}</div></div>`;
+      });
+      h+='</section>';
+    });
+    if(!act.length)h+=`<section class="card empty"><p>На неделю ${w} не запланировано ни одной тактики.</p><button class="btn" data-act="tab:plan">Открыть план</button></section>`;
+  }
+  const W=wkR(w),B=W.blocks;
+  h+=`<section class="card"><div class="sec-row"><h2 class="sec">Блоки времени</h2><span class="hint">Защищённое время под главное</span></div>
+    <div class="blk"><div><b>Стратегический блок</b><small>3 часа подряд на главные тактики, без почты и звонков · +25 XP</small></div><button class="toggle" data-act="blk:${w}:strategic" aria-pressed="${!!B.strategic}" aria-label="Стратегический блок"></button></div>
+    <div class="blk"><div><b>Буферные блоки</b><small>30–60 минут в день на почту и мелкие дела · +3 XP за каждый</small></div><div class="stepper"><button data-act="buf:${w}:-1" aria-label="Меньше">−</button><span>${B.buffer||0}/7</span><button data-act="buf:${w}:1" aria-label="Больше">+</button></div></div>
+    <div class="blk"><div><b>Брейк-аут блок</b><small>3 часа на отдых и восстановление, без работы · +15 XP</small></div><button class="toggle" data-act="blk:${w}:breakout" aria-pressed="${!!B.breakout}" aria-label="Брейк-аут блок"></button></div></section>`;
+  const lagGoals=S.goals.filter(g=>g.measure.name.trim());
+  h+=`<section class="card"><div class="sec-row"><h2 class="sec">Еженедельный обзор</h2><span class="hint">15–20 минут в конце недели</span></div>
+    <div class="grid2"><label class="f">Что сработало<textarea class="in" id="rv-${w}-good" data-f="rev:${w}:good" rows="2">${esc(W.review.good)}</textarea></label>
+    <label class="f">Что помешало<textarea class="in" id="rv-${w}-bad" data-f="rev:${w}:bad" rows="2">${esc(W.review.bad)}</textarea></label></div>
+    <label class="f">Что меняю на следующей неделе<textarea class="in" id="rv-${w}-next" data-f="rev:${w}:next" rows="2">${esc(W.review.next)}</textarea></label>
+    ${lagGoals.length?`<div class="lags"><div class="eyebrow">Результаты на конец недели</div>${lagGoals.map(g=>`<label class="lag" for="lag-${w}-${g.id}"><span>${esc(g.measure.name)}</span><input class="in" type="text" inputmode="decimal" id="lag-${w}-${g.id}" data-f="lag:${w}:${g.id}" value="${W.lag[g.id]==null?'':esc(String(W.lag[g.id]).replace('.',','))}" placeholder="0"><em>из ${fmtNum(g.measure.target)} ${esc(g.measure.unit)}</em></label>`).join('')}</div>`:''}
+    <div><button class="btn ${W.reviewed?'ok':'primary'}" data-act="reviewed:${w}" aria-pressed="${!!W.reviewed}">${W.reviewed?'✓ Обзор проведён':'Отметить обзор проведённым · +30 XP'}</button></div></section>`;
+  return h;
+}
+function viewWeek13(){
+  const W=wkR(13),avg=avgScore(),n85=scoredWeeks().filter(x=>x.sc>=85).length;
+  return `<section class="hero"><div class="ring-wrap">${ring(avg)}<div class="ring-num"><span class="big">${avg==null?'—':avg}<small>${avg==null?'':'%'}</small></span><span class="cap">В СРЕДНЕМ</span></div></div>
+    <div class="hero-info"><div class="eyebrow">${fmtRange(13)}</div><h1 class="h-week">Неделя 13 <span>итоги</span></h1>
+    <p class="hero-line">Тринадцатая неделя нужна, чтобы остановиться: оценить цикл, отметить успехи, отдохнуть и спокойно спланировать следующие 12 недель.</p>
+    <div class="hero-meta"><span class="pill good">${n85} ${plural(n85,'неделя','недели','недель')} ≥ 85%</span><span class="pill xp">${cycleXP()} XP за цикл</span><span class="pill">лучшая серия: ${maxStreak()}</span></div></div></section>
+    <section class="card"><h2 class="sec">Итоги цикла</h2>
+    <label class="f">Чем горжусь<textarea class="in" id="rv-13-good" data-f="rev:13:good" rows="3">${esc(W.review.good)}</textarea></label>
+    <label class="f">Чему меня научил этот цикл<textarea class="in" id="rv-13-bad" data-f="rev:13:bad" rows="3">${esc(W.review.bad)}</textarea></label>
+    <label class="f">Что беру в следующий цикл<textarea class="in" id="rv-13-next" data-f="rev:13:next" rows="3">${esc(W.review.next)}</textarea></label></section>
+    <section class="card"><h2 class="sec">Новый цикл</h2><p class="hint">Опыт и достижения сохранятся, недельные отметки обнулятся. Цели и видение останутся, их можно будет поправить.</p>
+    <div><button class="btn primary" data-act="newcycle" data-confirm="Да, начать новый цикл">Завершить цикл и начать новый</button></div></section>`;
+}
+function weekOpts(sel){let o='';for(let i=1;i<=12;i++)o+=`<option value="${i}"${i===sel?' selected':''}>${i}</option>`;return o}
+function viewPlan(){
+  const end12=addDays(S.cycle.start,83),s13=addDays(S.cycle.start,84),e13=addDays(S.cycle.start,90);
+  let h=`<section class="card"><h2 class="sec">Цикл</h2><div class="grid2">
+    <label class="f">Название<input class="in" id="cy-title" data-f="cycle:title" value="${esc(S.cycle.title)}"></label>
+    <label class="f">Начало (лучше понедельник)<input class="in" type="date" id="cy-start" data-f="cycle:start" data-rr value="${esc(S.cycle.start)}"></label></div>
+    <p class="hint">Недели 1–12: ${fmtDate(S.cycle.start)} – ${fmtDate(end12)} · неделя 13: ${fmtDate(s13)} – ${fmtDate(e13)}</p></section>
+    <section class="card"><div class="sec-row"><h2 class="sec">Видение</h2><span class="hint">С него начинается план · +20 XP</span></div>
+    <label class="f">Какой я хочу видеть свою жизнь в долгую<textarea class="in" id="vi-long" data-f="vision:long" rows="3" placeholder="Работа, здоровье, отношения, деньги, время для себя">${esc(S.vision.long)}</textarea></label>
+    <label class="f">Что должно получиться через 3 года<textarea class="in" id="vi-three" data-f="vision:three" rows="3" placeholder="Конкретно и измеримо">${esc(S.vision.three)}</textarea></label></section>`;
+  if(!S.goals.length){
+    h+=`<section class="card"><h2 class="sec">Как составить план</h2><div class="steps">
+      <div><b>Видение</b>Запишите, к чему вы идёте на горизонте нескольких лет.</div>
+      <div><b>1–3 цели</b>Выберите, что сдвинет вас к видению за ближайшие 12 недель.</div>
+      <div><b>Тактики</b>Для каждой цели запишите действия и сколько раз в неделю их делать.</div></div>
+      <div><button class="btn primary" data-act="addgoal">Добавить первую цель</button></div></section>`;
+    return h+dangerZone();
+  }
+  h+=`<div class="sec-row"><h2 class="sec">Цели на 12 недель</h2>${S.goals.length>3?'<span class="warn">Больше трёх целей размывают фокус. Сила системы в том, чтобы делать меньше, но до конца.</span>':'<span class="hint">Лучше 1–3 цели</span>'}</div>`;
+  S.goals.forEach((g,gi)=>{
+    h+=`<section class="card goalcard"><div class="g-top"><span class="gnum">Цель ${gi+1}</span></div>
+      <div class="g-top"><input class="in" id="g-${g.id}-title" data-f="goal:${g.id}:title" value="${esc(g.title)}" placeholder="Например: написать 40 страниц черновика" aria-label="Название цели"><button class="iconbtn" data-act="delgoal:${g.id}" data-confirm="Удалить цель" aria-label="Удалить цель">×</button></div>
+      <label class="f">Зачем это мне<input class="in" id="g-${g.id}-why" data-f="goal:${g.id}:why" value="${esc(g.why)}" placeholder="Связь с видением"></label>
+      <div class="measure"><label class="f">Показатель результата<input class="in" id="g-${g.id}-mn" data-f="goal:${g.id}:mname" value="${esc(g.measure.name)}" placeholder="Страниц написано"></label>
+      <label class="f">Цель<input class="in" id="g-${g.id}-mt" inputmode="decimal" data-f="goal:${g.id}:mtarget" value="${g.measure.target==null?'':esc(String(g.measure.target).replace('.',','))}" placeholder="40"></label>
+      <label class="f">Единица<input class="in" id="g-${g.id}-mu" data-f="goal:${g.id}:munit" value="${esc(g.measure.unit)}" placeholder="стр."></label></div>
+      <div><div class="eyebrow">Тактики · что делать и сколько раз в неделю</div>`;
+    g.tactics.forEach(t=>{
+      h+=`<div class="tacrow"><input class="in ttl" id="t-${t.id}-title" data-f="tac:${g.id}:${t.id}:title" value="${esc(t.title)}" placeholder="Конкретное действие" aria-label="Тактика">
+        <div class="ctrls"><select class="in" id="t-${t.id}-per" data-f="tac:${g.id}:${t.id}:per" data-rr aria-label="Раз в неделю">${[1,2,3,4,5,6,7].map(n=>`<option value="${n}"${n===t.per?' selected':''}>${n}× в нед.</option>`).join('')}</select>
+        <span class="dash">недели</span><select class="in" id="t-${t.id}-from" data-f="tac:${g.id}:${t.id}:from" data-rr aria-label="С недели">${weekOpts(t.from)}</select><span class="dash">–</span><select class="in" id="t-${t.id}-to" data-f="tac:${g.id}:${t.id}:to" data-rr aria-label="По неделю">${weekOpts(t.to)}</select>
+        <button class="iconbtn" data-act="deltac:${g.id}:${t.id}" data-confirm="Удалить" aria-label="Удалить тактику">×</button></div></div>`;
+    });
+    h+=`</div><div><button class="btn small" data-act="addtac:${g.id}">+ Тактика</button></div></section>`;
+  });
+  h+=`<div><button class="btn" data-act="addgoal">+ Добавить цель</button></div>`;
+  return h+dangerZone();
+}
+function dangerZone(){
+  return `<section class="card"><h2 class="sec">Сброс</h2><p class="hint">Удалит цели, отметки, опыт и достижения. Отменить нельзя.</p><div><button class="btn danger" data-act="resetall" data-confirm="Да, удалить всё">Начать с чистого листа</button></div></section>`;
+}
+function chart(){
+  const W=480,H=220,L=34,R=10,T=14,B=28,pw=W-L-R,ph=H-T-B,step=pw/12,bw=step*.58,y=v=>T+ph-(v/100)*ph;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Оценка исполнения по неделям">`;
+  [0,50,100].forEach(v=>{s+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`});
+  const rw=rawWeek();
+  for(let w=1;w<=12;w++){
+    const sc=score(w),x=L+step*(w-1)+(step-bw)/2,future=w>rw&&!(S.weeks[w]&&weekCounts(w).done>0);
+    if(sc==null||future){s+=`<rect class="b-empty" x="${x.toFixed(1)}" y="${T}" width="${bw.toFixed(1)}" height="${ph}" rx="4"/>`}
+    else{const hh=Math.max(2,(sc/100)*ph);s+=`<rect class="b-${cls(sc)}" x="${x.toFixed(1)}" y="${(y(sc)).toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" rx="4"/><text class="val" x="${(x+bw/2).toFixed(1)}" y="${(y(sc)-5).toFixed(1)}" text-anchor="middle">${sc}</text>`}
+    s+=`<text ${w===curWeek()&&rw<=12?'class="now" ':''}x="${(L+step*(w-.5)).toFixed(1)}" y="${H-9}" text-anchor="middle">${w}</text>`;
+  }
+  s+=`<line class="tl" x1="${L}" x2="${W-R}" y1="${y(85)}" y2="${y(85)}"/><text class="tlt" x="${L-6}" y="${y(85)+4}" text-anchor="end">85</text></svg>`;
+  return s;
+}
+function spark(vals,target){
+  const pts=vals.filter(p=>p.v!=null);if(pts.length<2)return'';
+  const max=Math.max(target||0,...pts.map(p=>p.v))||1,X=w=>4+(w-1)*(112/11),Y=v=>36-(v/max)*32;
+  const d=pts.map((p,i)=>(i?'L':'M')+X(p.w).toFixed(1)+' '+Y(p.v).toFixed(1)).join(' ');const last=pts[pts.length-1];
+  return `<svg class="spark" viewBox="0 0 120 40" aria-hidden="true"><path d="${d}"/><circle cx="${X(last.w).toFixed(1)}" cy="${Y(last.v).toFixed(1)}" r="3"/></svg>`;
+}
+function viewResults(){
+  const avg=avgScore(),n85=scoredWeeks().filter(x=>x.sc>=85&&x.w<=Math.max(1,pastWeeks())).length;
+  let h=`<div class="stats"><div class="stat"><b>${avg==null?'—':avg+'%'}</b><span>средняя оценка</span></div><div class="stat"><b>${n85}</b><span>${plural(n85,'неделя','недели','недель')} ≥ 85%</span></div><div class="stat"><b>${maxStreak()}</b><span>лучшая серия</span></div><div class="stat"><b>${cycleXP()}</b><span>XP за цикл</span></div></div>
+    <section class="card"><div class="sec-row"><h2 class="sec">Исполнение по неделям</h2><span class="hint">Пунктир: порог 85%</span></div>${chart()}</section>`;
+  if(S.goals.length){
+    h+=`<section class="card"><div class="sec-row"><h2 class="sec">Движение к целям</h2><span class="hint">По данным еженедельных обзоров</span></div>`;
+    S.goals.forEach((g,gi)=>{
+      const vals=[];let last=null;for(let w=1;w<=12;w++){const v=S.weeks[w]?S.weeks[w].lag[g.id]:null;vals.push({w,v:v==null?null:v});if(v!=null)last=v}
+      const tgt=g.measure.target,pct=tgt&&last!=null?clamp(Math.round(last/tgt*100),0,100):0;
+      h+=`<div class="gprog"><div><span class="gnum">Цель ${gi+1}</span> <b>${esc(g.title||'Без названия')}</b></div>${spark(vals,tgt)}
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="nums">${g.measure.name?esc(g.measure.name)+': ':''}${fmtNum(last)} из ${fmtNum(tgt)} ${esc(g.measure.unit)}${tgt&&last!=null?' · '+pct+'%':''}</div></div>`;
+    });
+    h+='</section>';
+  }
+  const rv=[];for(let w=1;w<=13;w++){const W=S.weeks[w];if(W&&(W.review.good||W.review.bad||W.review.next))rv.push(w)}
+  h+=`<section class="card"><h2 class="sec">Журнал обзоров</h2>`;
+  if(!rv.length)h+=`<p class="hint">Здесь соберутся ваши еженедельные обзоры: что сработало, что помешало и что вы меняете.</p>`;
+  rv.forEach(w=>{const W=S.weeks[w],sc=w<=12?score(w):null;const L13=w===13;
+    h+=`<details class="rv"><summary>Неделя ${w}${sc!=null?` <span class="pill ${sc>=85?'good':''}">${sc}%</span>`:''}${W.reviewed?' <span class="pill">обзор проведён</span>':''}</summary><dl>
+      <dt>${L13?'Чем горжусь':'Сработало'}</dt><dd>${esc(W.review.good)||'—'}</dd><dt>${L13?'Чему научил цикл':'Помешало'}</dt><dd>${esc(W.review.bad)||'—'}</dd><dt>${L13?'Беру дальше':'Меняю'}</dt><dd>${esc(W.review.next)||'—'}</dd></dl></details>`});
+  h+='</section>';
+  if(S.history.length){h+=`<section class="card"><h2 class="sec">Прошлые циклы</h2>${S.history.slice().reverse().map(c=>`<div class="blk"><div><b>${esc(c.title)}</b><small>с ${fmtDate(c.start)} · ${c.weeks85} ${plural(c.weeks85,'неделя','недели','недель')} ≥ 85%</small></div><span class="pill xp">${c.avg==null?'—':c.avg+'%'} · ${c.xp} XP</span></div>`).join('')}</section>`}
+  return h;
+}
+function viewLevel(){
+  const xp=totalXP(),L=levelOf(xp),got=Object.keys(S.ach).length;
+  let h=`<section class="card levelcard"><div class="biglvl"><span>уровень</span><b>${L.n}</b></div><div><div class="eyebrow">${xp} XP всего</div><h2>${esc(L.title)}</h2>
+    <div class="bar"><i style="width:${L.pct}%"></i></div><p class="hint" style="margin-top:8px">До уровня ${L.n+1} «${esc(TITLES[Math.min(L.n,TITLES.length-1)])}»: ${L.to-xp} XP</p></div></section>
+    <section class="card"><div class="sec-row"><h2 class="sec">Достижения</h2><span class="hint">${got} из ${ACH.length} · +50 XP за каждое</span></div><div class="achs">
+    ${ACH.map(a=>{const on=!!S.ach[a.id];return `<div class="ach${on?'':' locked'}"><span class="medal">${on?esc(a.mark):'?'}</span><div><b>${esc(a.name)}</b><small>${esc(a.desc)}${on?' · '+fmtDate(S.ach[a.id]):''}</small></div></div>`}).join('')}</div></section>
+    <div class="grid2"><section class="card"><h2 class="sec">Как начисляется опыт</h2><table class="xptable"><tbody>
+      <tr><td>Каждое выполненное действие</td><td>+10</td></tr><tr><td>Неделя на 85% и выше</td><td>+100</td></tr><tr><td>Идеальная неделя, 100%</td><td>+50</td></tr>
+      <tr><td>Еженедельный обзор</td><td>+30</td></tr><tr><td>Стратегический блок</td><td>+25</td></tr><tr><td>Брейк-аут блок</td><td>+15</td></tr><tr><td>Буферный блок</td><td>+3</td></tr><tr><td>Видение записано</td><td>+20</td></tr><tr><td>Достижение</td><td>+50</td></tr></tbody></table>
+      <p class="hint">Опыт копится между циклами: начиная новый цикл, вы сохраняете уровень.</p></section>
+    <section class="card"><h2 class="sec">Правила системы</h2><ol class="rules">
+      <li><div><b>Год длится 12 недель</b>Короткий срок убирает «ещё успею» и создаёт здоровую срочность каждую неделю.</div></li>
+      <li><div><b>Видение → цели → тактики</b>Цели вытекают из видения, тактики описывают конкретные действия и их частоту.</div></li>
+      <li><div><b>Оценивайте действия, а не результат</b>Результат запаздывает, а действия под вашим контролем. 85% выполненных тактик уже ведут к цели.</div></li>
+      <li><div><b>Неделя начинается с плана и заканчивается обзором</b>Короткий честный обзор каждую неделю важнее идеального плана.</div></li>
+      <li><div><b>Время защищено блоками</b>Стратегический блок для главного, буферные для мелочей, брейк-аут для отдыха.</div></li>
+      <li><div><b>Неделя 13 — пауза</b>Подведите итоги, отпразднуйте и только потом планируйте следующий цикл.</div></li></ol></section></div>`;
+  return h;
+}
+
+function viewAccount(){
+  let h=`<section class="card"><div class="sec-row"><h2 class="sec">Синхронизация</h2><span class="hint">Один цикл на телефоне и компьютере</span></div>`;
+  if(!SYNC_READY){
+    h+=`<p>Синхронизация пока не настроена. Данные хранятся только в этом браузере.</p><p class="hint">Чтобы включить её, впишите адрес проекта Supabase и публичный ключ в файл config.js.</p>`;
+  }else if(session){
+    h+=`<p>Вы вошли как <b>${esc(session.user.email||'')}</b>. Изменения сохраняются на устройстве и отправляются в облако.</p>
+      ${syncErr?`<p class="notice">Сейчас нет связи с сервером. Ничего не потеряется: данные отправятся, как только связь появится.</p>`:''}
+      <div class="row-btns"><button class="btn" data-act="sync:now">Синхронизировать сейчас</button><button class="btn ghost" data-act="auth:out">Выйти</button></div>`;
+  }else{
+    const up=auth.mode==='up';
+    h+=`<p>${up?'Создайте аккаунт, и цикл будет одинаковым на всех ваших устройствах.':'Войдите, и цикл будет одинаковым на всех ваших устройствах.'}</p>
+      ${auth.info?`<p class="notice">${esc(auth.info)}</p>`:''}
+      <form class="authform" data-form="${up?'signup':'signin'}">
+        <label class="f">Электронная почта<input class="in" id="au-email" type="email" autocomplete="email" value="${esc(auth.email)}" placeholder="you@example.com" required></label>
+        <label class="f">Пароль<input class="in" id="au-pass" type="password" autocomplete="${up?'new-password':'current-password'}" minlength="6" placeholder="${up?'Не короче 6 символов':''}" required></label>
+        <div class="row-btns"><button class="btn primary" type="submit"${auth.busy?' disabled':''}>${auth.busy?'Подождите…':(up?'Создать аккаунт':'Войти')}</button>
+        <button class="btn ghost" type="button" data-act="auth:${up?'in':'up'}">${up?'У меня уже есть аккаунт':'Создать аккаунт'}</button></div></form>`;
+  }
+  if(auth.msg)h+=`<p class="formmsg">${esc(auth.msg)}</p>`;
+  h+=`</section>
+    <section class="card"><div class="sec-row"><h2 class="sec">Резервная копия</h2><span class="hint">Файл со всеми целями, отметками и опытом</span></div>
+      <div class="row-btns"><button class="btn" data-act="backup:save">Скачать копию</button><button class="btn ghost" data-act="backup:load">Восстановить из файла</button></div>
+      <input type="file" id="backup-file" accept="application/json,.json" hidden>
+      ${pendingImport?`<div class="notice"><p>Заменить текущие данные копией «${esc(pendingImport.cycle.title)}» от ${pendingImport.updatedAt?new Date(pendingImport.updatedAt).toLocaleDateString('ru-RU'):'неизвестной даты'}?</p>
+        <div class="row-btns" style="margin-top:8px"><button class="btn primary small" data-act="backup:apply">Заменить</button><button class="btn ghost small" data-act="backup:cancel">Отмена</button></div></div>`:''}
+    </section>
+    <section class="card"><h2 class="sec">Установить на телефон</h2>
+      ${installPrompt?`<div><button class="btn primary" data-act="install">Установить приложение</button></div>`:''}
+      <div class="grid2"><div><b>iPhone</b><p class="hint">Откройте сайт в Safari → «Поделиться» → «На экран „Домой“».</p></div>
+      <div><b>Android</b><p class="hint">Откройте сайт в Chrome → меню ⋮ → «Установить приложение» или «Добавить на главный экран».</p></div></div>
+      <p class="hint">После установки приложение открывается с иконки и работает без интернета.</p></section>`;
+  return h;
+}
+
+/* ---------- mutations ---------- */
+function setField(key,val){
+  const p=key.split(':');
+  switch(p[0]){
+    case 'cycle':if(p[1]==='start'){if(/^\d{4}-\d{2}-\d{2}$/.test(val))S.cycle.start=val}else S.cycle[p[1]]=val;break;
+    case 'vision':S.vision[p[1]]=val;break;
+    case 'goal':{const g=goal(p[1]);if(!g)return;
+      if(p[2]==='mtarget')g.measure.target=val.trim()===''?null:num(val);else if(p[2]==='mname')g.measure.name=val;else if(p[2]==='munit')g.measure.unit=val;else g[p[2]]=val;break}
+    case 'tac':{const g=goal(p[1]);const t=g&&g.tactics.find(x=>x.id===p[2]);if(!t)return;
+      if(p[3]==='title')t.title=val;else{t[p[3]]=parseInt(val,10);if(t.from>t.to){if(p[3]==='from')t.to=t.from;else t.from=t.to}}break}
+    case 'rev':wk(+p[1]).review[p[2]]=val;break;
+    case 'lag':wk(+p[1]).lag[p[2]]=val.trim()===''?null:num(val);break;
+  }
+}
+function commit(rerender){checkUnlocks();settle();scheduleSave();if(rerender!==false)render();else renderHeader()}
+function arm(key,btn){
+  if(ui.armed===key){ui.armed=null;return true}
+  if(ui.armed){const prev=document.querySelector(`[data-act="${CSS.escape(ui.armed)}"]`);if(prev&&prev.dataset.label){prev.textContent=prev.dataset.label;prev.classList.remove('armed')}}
+  ui.armed=key;btn.dataset.label=btn.textContent;btn.textContent=btn.dataset.confirm||'Точно?';btn.classList.add('armed');
+  setTimeout(()=>{if(ui.armed===key){ui.armed=null;const el=document.querySelector(`[data-act="${CSS.escape(key)}"]`);if(el&&el.dataset.label){el.textContent=el.dataset.label;el.classList.remove('armed')}}},4000);
+  return false;
+}
+function focusId(id){requestAnimationFrame(()=>{const el=document.getElementById(id);if(el)el.focus()})}
+function act(key,btn){
+  const p=key.split(':');
+  switch(p[0]){
+    case 'tab':ui.tab=p[1];if(p[1]==='week')ui.week=ui.week||curWeek();render();window.scrollTo({top:0});break;
+    case 'week':ui.week=+p[1];ui.tab='week';render();break;
+    case 'pip':{const W=wk(+p[1]),cur=W.done[p[2]]||0,i=+p[3];W.done[p[2]]=cur===i+1?i:i+1;commit();break}
+    case 'blk':{const W=wk(+p[1]);W.blocks[p[2]]=!W.blocks[p[2]];commit();break}
+    case 'buf':{const W=wk(+p[1]);W.blocks.buffer=clamp((W.blocks.buffer||0)+(+p[2]),0,7);commit();break}
+    case 'reviewed':{const W=wk(+p[1]);W.reviewed=!W.reviewed;commit();break}
+    case 'addgoal':{const g={id:uid(),title:'',why:'',measure:{name:'',target:null,unit:''},tactics:[]};S.goals.push(g);commit();focusId('g-'+g.id+'-title');break}
+    case 'delgoal':if(arm(key,btn)){S.goals=S.goals.filter(g=>g.id!==p[1]);commit()}break;
+    case 'addtac':{const g=goal(p[1]);if(!g)return;const rw=rawWeek();const t={id:uid(),title:'',per:1,from:clamp(rw,1,12),to:12};g.tactics.push(t);commit();focusId('t-'+t.id+'-title');break}
+    case 'deltac':if(arm(key,btn)){const g=goal(p[1]);if(g)g.tactics=g.tactics.filter(t=>t.id!==p[2]);commit()}break;
+    case 'ex':
+      if(p[1]==='keep'){S.isExample=false;S.cycle.title=S.cycle.title.replace(/\s*\(пример\)\s*$/,'');commit()}
+      else{S=blankState();S.rev=1;ui.week=curWeek();ui.tab='plan';checkUnlocks(true);ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}
+      break;
+    case 'resetall':if(arm(key,btn)){S=blankState();ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
+    case 'auth':
+      if(p[1]==='in'||p[1]==='up'){auth.mode=p[1];auth.msg='';auth.info='';render();focusId('au-email')}
+      else if(p[1]==='out'&&sb){sb.auth.signOut().catch(()=>{});auth.mode='in';auth.msg='Вы вышли. Данные остались на этом устройстве.';render()}
+      break;
+    case 'sync':if(session){if(dirty)flush();else{dirty=true;flush()}}break;
+    case 'backup':
+      if(p[1]==='save'){
+        const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);a.download='12-nedel-'+todayISO()+'.json';document.body.appendChild(a);a.click();
+        setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+      }else if(p[1]==='load'){const f=document.getElementById('backup-file');if(f){f.value='';f.click()}}
+      else if(p[1]==='apply'&&pendingImport){const imp=pendingImport;pendingImport=null;S=imp;S.isExample=false;ui.week=curWeek();checkUnlocks(true);ui.lastXP=totalXP();scheduleSave();render();toast('Данные восстановлены')}
+      else if(p[1]==='cancel'){pendingImport=null;render()}
+      break;
+    case 'install':if(installPrompt){installPrompt.prompt();installPrompt.userChoice.finally(()=>{installPrompt=null;render()})}break;
+    case 'newcycle':if(arm(key,btn)){
+      const cxp=cycleXP();
+      S.history.push({title:S.cycle.title,start:S.cycle.start,avg:avgScore(),xp:cxp,weeks85:scoredWeeks().filter(x=>x.sc>=85).length});
+      S.xpBank+=cxp;ui.lastXP-=0;
+      const after13=addDays(S.cycle.start,91),t=mondayISO(new Date());
+      S.cycle.start=dayDiff(after13,t)>0?t:after13;S.cycle.title='Цикл '+(S.history.length+1);S.weeks={};S.isExample=false;
+      ui.week=1;ui.tab='plan';commit();window.scrollTo({top:0});toast('Новый цикл начат. Проверьте цели и тактики','lvl');}
+      break;
+  }
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const key=b.dataset.act,hadFocus=document.activeElement===b;
+  act(key,b);
+  if(hadFocus&&!b.isConnected){const n=document.querySelector(`[data-act="${CSS.escape(key)}"]`);if(n)n.focus({preventScroll:true})}
+});
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset||!el.dataset.f||el.tagName==='SELECT')return;setField(el.dataset.f,el.value);scheduleSave()});
+document.addEventListener('change',e=>{
+  const el=e.target;if(!el.dataset||!el.dataset.f)return;
+  setField(el.dataset.f,el.value);
+  if('rr' in el.dataset){const id=el.id;if(el.dataset.f==='cycle:start')ui.week=curWeek();commit();if(id)focusId(id)}
+  else commit(false);
+});
+
+document.addEventListener('submit',async e=>{
+  const f=e.target.closest('[data-form]');if(!f)return;e.preventDefault();
+  if(!sb||auth.busy)return;
+  const email=(document.getElementById('au-email').value||'').trim(),password=document.getElementById('au-pass').value||'';
+  if(!email||!password)return;
+  auth.email=email;auth.busy=true;auth.msg='';render();
+  if(f.dataset.form==='signup'){
+    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+    auth.busy=false;
+    if(error)auth.msg=/rate|security purposes/i.test(error.message)?'Слишком много попыток. Подождите немного и попробуйте снова.':/registered|exists/i.test(error.message)?'Аккаунт с этой почтой уже есть. Войдите с паролем.':/password/i.test(error.message)?'Пароль слишком простой: нужно не меньше 6 символов.':'Не получилось создать аккаунт: '+error.message;
+    else if(data&&data.session){toast('Аккаунт создан. Синхронизирую…','lvl')}
+    else{auth.mode='in';auth.info='Мы отправили письмо на '+email+'. Нажмите в нём ссылку для подтверждения, затем вернитесь сюда и войдите с паролем. Письмо может прийти через пару минут, проверьте «Спам».'}
+  }else{
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    auth.busy=false;
+    if(error)auth.msg=/confirm/i.test(error.message)?'Почта ещё не подтверждена. Нажмите ссылку в письме от Supabase и попробуйте снова.':/invalid/i.test(error.message)?'Неверная почта или пароль.':'Не получилось войти: '+error.message;
+    else{auth.info='';toast('Вход выполнен. Синхронизирую…','lvl')}
+  }
+  render();
+});
+document.addEventListener('change',e=>{
+  if(e.target.id!=='backup-file')return;const file=e.target.files&&e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!d.cycle||!Array.isArray(d.goals))throw 0;pendingImport=migrate(d);render()}catch(err){toast('Этот файл не похож на резервную копию 12 недель')}};
+  r.readAsText(file);
+});
+
+/* ---------- boot ---------- */
+ui.week=curWeek();
+checkUnlocks(true);
+ui.lastXP=totalXP();
+render();
+initSync();
+if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;if(ui.tab==='account')render()});
+})();
+</script>
+</body>
+</html>
