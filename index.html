@@ -380,7 +380,12 @@ function migrate(s){
 }
 let S;
 let hadLocal=false;
-try{const raw=localStorage.getItem(LS_KEY);if(raw){S=migrate(JSON.parse(raw));hadLocal=true}}catch(e){}
+function isExampleData(x){
+  if(!x)return false;if(x.isExample)return true;
+  const gs=x.goals||[];
+  return gs.length>0&&gs.every(g=>/^g\d$/.test(g.id)&&(g.tactics||[]).every(t=>/^t\d$/.test(t.id)));
+}
+try{const raw=localStorage.getItem(LS_KEY);if(raw){const x=migrate(JSON.parse(raw));if(isExampleData(x)){localStorage.removeItem(LS_KEY)}else{S=x;hadLocal=true}}}catch(e){}
 if(!S)S=blankState();
 
 const ui={tab:'week',week:1,armed:null,lastXP:0};
@@ -453,6 +458,7 @@ const auth={mode:'in',email:'',busy:false,msg:'',info:''};
 let pendingImport=null,installPrompt=null;
 function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S))}catch(e){}}
 function scheduleSave(){
+  if(S.isExample){setStatus();return}
   S.rev=(S.rev||0)+1;S.updatedAt=Date.now();saveLocal();
   if(session){dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,800)}
   setStatus();
@@ -475,6 +481,7 @@ async function pull(initial){
     if(error)throw error;
     if(data&&data.state){
       const remote=migrate(data.state);
+      if(isExampleData(remote)){if(!S.isExample&&S.goals.length){dirty=true;flush()}setStatus();return}
       if(initial){
         if(!S.isExample&&(S.updatedAt||0)>(remote.updatedAt||0)){dirty=true;flush()}
         else if((remote.updatedAt||0)!==(S.updatedAt||0))adopt(remote);
@@ -528,7 +535,7 @@ function render(){
   renderHeader();
   const m=document.getElementById('main');
   let h=S.isExample?`<div class="banner"><p><b>Это пример цикла.</b> Пощёлкайте по кружкам и неделям, чтобы посмотреть, как всё работает. Ваши данные он не затрагивает.</p>
-    <div class="banner-actions"><button class="btn primary" data-act="ex:clear">Начать свой цикл</button><button class="btn ghost" data-act="ex:keep">Взять пример за основу</button><button class="btn ghost" data-act="ex:exit">Закрыть пример</button></div></div>`:'';
+    <div class="banner-actions"><button class="btn primary" data-act="ex:clear">Начать свой цикл</button><button class="btn ghost" data-act="ex:exit">Закрыть пример</button></div></div>`:'';
   h+=ui.tab==='week'?viewWeek():ui.tab==='plan'?viewPlan():ui.tab==='results'?viewResults():ui.tab==='account'?viewAccount():viewLevel();
   m.innerHTML=h;
 }
@@ -808,9 +815,8 @@ function act(key,btn){
     case 'addtac':{const g=goal(p[1]);if(!g)return;const rw=rawWeek();const t={id:uid(),title:'',per:1,from:clamp(rw,1,12),to:12};g.tactics.push(t);commit();focusId('t-'+t.id+'-title');break}
     case 'deltac':if(arm(key,btn)){const g=goal(p[1]);if(g)g.tactics=g.tactics.filter(t=>t.id!==p[2]);commit()}break;
     case 'ex':
-      if(p[1]==='show'){S=exampleState();ui.week=curWeek();ui.tab='week';checkUnlocks(true);ui.lastXP=totalXP();saveLocal();render();window.scrollTo({top:0})}
-      else if(p[1]==='keep'){S.isExample=false;S.cycle.title=S.cycle.title.replace(/\s*\(пример\)\s*$/,'');commit()}
-      else{S=blankState();ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();saveLocal();render();window.scrollTo({top:0})}
+      if(p[1]==='show'){S=exampleState();ui.week=curWeek();ui.tab='week';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
+      else{try{const r=localStorage.getItem(LS_KEY);S=r?migrate(JSON.parse(r)):blankState()}catch(e){S=blankState()}if(isExampleData(S))S=blankState();ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();render();window.scrollTo({top:0})}
       break;
     case 'resetall':if(arm(key,btn)){S=blankState();ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
     case 'auth':
