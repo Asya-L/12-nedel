@@ -268,6 +268,25 @@ details.rv dd{margin:0;white-space:pre-wrap}
 .rules li::before{content:counter(r);font-family:var(--font-display);font-weight:500;font-size:13px;width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
 .rules b{display:block}
 
+.welcome{display:flex;flex-direction:column;gap:18px}
+.wl-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px}
+@media (max-width:620px){.wl-hero{grid-template-columns:1fr;padding:22px}.wl-art{order:-1}}
+.wl-text{display:flex;flex-direction:column;gap:14px;min-width:0}
+.wl-title{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,6vw,40px);line-height:1.08;letter-spacing:-.02em}
+.wl-title span{color:var(--accent)}
+.wl-lead{max-width:48ch;color:var(--muted);font-size:16px}
+.btn.big{padding:12px 20px;font-size:15px}
+.wl-art{display:grid;grid-template-columns:repeat(4,30px);gap:6px;align-self:center}
+.wl-art i{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);border:1px solid var(--line);animation:wlpop .4s ease both;animation-delay:calc(var(--d)*45ms)}
+.wl-art i:first-child{background:var(--accent);border-color:var(--accent)}
+.wl-art b{grid-column:1 / -1;height:30px;border-radius:8px;border:1px dashed var(--line);display:grid;place-items:center;font-family:var(--font-display);font-weight:500;font-size:12px;color:var(--muted)}
+@keyframes wlpop{from{transform:scale(.6);opacity:.3}to{transform:none;opacity:1}}
+.wl-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;counter-reset:w}
+@media (max-width:760px){.wl-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.wl-steps{grid-template-columns:1fr}}
+.wl-steps li{counter-increment:w;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.wl-steps li::before{content:counter(w);font-family:var(--font-mono);font-size:11px;color:var(--accent)}
+.wl-steps span{color:var(--muted)}
 .empty{text-align:center;padding:28px 18px;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty p{max-width:40ch;color:var(--muted)}
 
@@ -362,7 +381,7 @@ function migrate(s){
 let S;
 let hadLocal=false;
 try{const raw=localStorage.getItem(LS_KEY);if(raw){S=migrate(JSON.parse(raw));hadLocal=true}}catch(e){}
-if(!S)S=exampleState();
+if(!S)S=blankState();
 
 const ui={tab:'week',week:1,armed:null,lastXP:0};
 
@@ -508,8 +527,8 @@ function renderHeader(){
 function render(){
   renderHeader();
   const m=document.getElementById('main');
-  let h=S.isExample?`<div class="banner"><p><b>Это пример цикла.</b> Пощёлкайте по кружкам и неделям, чтобы посмотреть, как всё работает, затем начните свой.</p>
-    <div class="banner-actions"><button class="btn primary" data-act="ex:clear">Начать свой цикл</button><button class="btn ghost" data-act="ex:keep">Взять пример за основу</button></div></div>`:'';
+  let h=S.isExample?`<div class="banner"><p><b>Это пример цикла.</b> Пощёлкайте по кружкам и неделям, чтобы посмотреть, как всё работает. Ваши данные он не затрагивает.</p>
+    <div class="banner-actions"><button class="btn primary" data-act="ex:clear">Начать свой цикл</button><button class="btn ghost" data-act="ex:keep">Взять пример за основу</button><button class="btn ghost" data-act="ex:exit">Закрыть пример</button></div></div>`:'';
   h+=ui.tab==='week'?viewWeek():ui.tab==='plan'?viewPlan():ui.tab==='results'?viewResults():ui.tab==='account'?viewAccount():viewLevel();
   m.innerHTML=h;
 }
@@ -531,7 +550,28 @@ function ring(sc){
   const a=(0.85*360-90)*Math.PI/180,x1=66+46*Math.cos(a),y1=66+46*Math.sin(a),x2=66+62*Math.cos(a),y2=66+62*Math.sin(a);
   return `<svg viewBox="0 0 132 132" class="ring ${cls(sc)}" aria-hidden="true"><circle cx="66" cy="66" r="${r}" class="ring-bg"/>${v>0?`<circle cx="66" cy="66" r="${r}" class="ring-fg" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 66 66)"/>`:''}<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="ring-tick"/></svg>`;
 }
+function viewWelcome(){
+  const signedOut=SYNC_READY&&!session;
+  return `<section class="welcome">
+    <div class="wl-hero">
+      <div class="wl-text"><div class="eyebrow">Новый цикл · с ${fmtDate(S.cycle.start)}</div>
+        <h1 class="wl-title">Ваш год длится<br><span>12 недель</span></h1>
+        <p class="wl-lead">Выберите одну–три цели, распишите конкретные действия на каждую неделю и отмечайте их. Неделя засчитывается, когда выполнено 85% задуманного.</p>
+        <div class="row-btns"><button class="btn primary big" data-act="tab:plan">Составить план</button><button class="btn ghost" data-act="ex:show">Посмотреть пример</button></div>
+        ${signedOut?`<p class="hint">Уже ведёте цикл на другом устройстве? <button class="linkbtn" data-act="tab:account">Войдите</button>, и он появится здесь.</p>`:''}
+      </div>
+      <div class="wl-art" aria-hidden="true">${[...Array(12)].map((_,i)=>`<i style="--d:${i}"></i>`).join('')}<b>13</b></div>
+    </div>
+    <ol class="wl-steps">
+      <li><b>Видение</b><span>Каким вы хотите видеть свою жизнь через несколько лет.</span></li>
+      <li><b>1–3 цели</b><span>Что сдвинет вас к видению за ближайшие 12 недель.</span></li>
+      <li><b>Тактики</b><span>Конкретные действия и сколько раз в неделю их делать.</span></li>
+      <li><b>Отметки и обзор</b><span>Каждый день отмечаете сделанное, в конце недели подводите итог.</span></li>
+    </ol>
+  </section>`;
+}
 function viewWeek(){
+  if(!S.isExample&&!S.goals.length)return viewWelcome();
   const w=ui.week;let h=`<section class="card">${strip()}<div class="strip-legend"><span><i style="background:var(--good)"></i>85% и выше</span><span><i style="background:var(--xp)"></i>65–84%</span><span><i style="background:var(--low)"></i>ниже 65%</span><span><i style="background:var(--accent);border-radius:50%"></i>текущая неделя</span></div></section>`;
   if(w===13)return h+viewWeek13();
   const rw=rawWeek(),sc=score(w),{plan,done}=weekCounts(w);
@@ -768,8 +808,9 @@ function act(key,btn){
     case 'addtac':{const g=goal(p[1]);if(!g)return;const rw=rawWeek();const t={id:uid(),title:'',per:1,from:clamp(rw,1,12),to:12};g.tactics.push(t);commit();focusId('t-'+t.id+'-title');break}
     case 'deltac':if(arm(key,btn)){const g=goal(p[1]);if(g)g.tactics=g.tactics.filter(t=>t.id!==p[2]);commit()}break;
     case 'ex':
-      if(p[1]==='keep'){S.isExample=false;S.cycle.title=S.cycle.title.replace(/\s*\(пример\)\s*$/,'');commit()}
-      else{S=blankState();S.rev=1;ui.week=curWeek();ui.tab='plan';checkUnlocks(true);ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}
+      if(p[1]==='show'){S=exampleState();ui.week=curWeek();ui.tab='week';checkUnlocks(true);ui.lastXP=totalXP();saveLocal();render();window.scrollTo({top:0})}
+      else if(p[1]==='keep'){S.isExample=false;S.cycle.title=S.cycle.title.replace(/\s*\(пример\)\s*$/,'');commit()}
+      else{S=blankState();ui.week=curWeek();ui.tab=p[1]==='exit'?'week':'plan';checkUnlocks(true);ui.lastXP=totalXP();saveLocal();render();window.scrollTo({top:0})}
       break;
     case 'resetall':if(arm(key,btn)){S=blankState();ui.week=curWeek();ui.tab='plan';ui.lastXP=totalXP();scheduleSave();render();window.scrollTo({top:0})}break;
     case 'auth':
